@@ -257,7 +257,7 @@ export default function ClientRegionPage() {
           </div>
 
           {/* Lado derecho: acciones y comentarios */}
-          <div className={`w-full md:w-96 bg-[#15202b] border-t md:border-t-0 md:border-l border-slate-700 flex flex-col overflow-hidden md:max-h-full ${commenting ? 'flex-1' : 'max-h-[45vh]'}`}>
+          <div className="w-full md:w-96 bg-[#15202b] border-t md:border-t-0 md:border-l border-slate-700 flex flex-col overflow-hidden md:max-h-full max-h-[45vh]">
             {/* Header del panel */}
             <div className="px-4 pt-4 pb-3 flex-shrink-0">
               <div className="flex items-center justify-between gap-2 mb-3">
@@ -265,13 +265,6 @@ export default function ClientRegionPage() {
                   {statusBadge(selectedImage.status)}
                   <p className="text-white text-sm font-semibold truncate">Lámina {images.findIndex(i => i.id === selectedImage.id) + 1}</p>
                 </div>
-                {/* Botón volver a imagen en mobile cuando está comentando */}
-                {commenting && (
-                  <button
-                    onClick={() => setCommenting(false)}
-                    className="md:hidden text-xs text-slate-400 bg-slate-700 px-3 py-1.5 rounded-lg flex-shrink-0"
-                  >← Imagen</button>
-                )}
               </div>
 
               {/* Banner revisado */}
@@ -305,23 +298,57 @@ export default function ClientRegionPage() {
               ))}
             </div>
 
-            {/* Input de comentario */}
-            <div className="px-4 py-3 border-t border-slate-700 flex-shrink-0">
+            {/* Input de comentario — desktop */}
+            <div className="hidden md:block px-4 py-3 border-t border-slate-700 flex-shrink-0">
               <div className="flex gap-2">
                 <input
                   value={newComment}
                   onChange={e => setNewComment(e.target.value)}
-                  onFocus={() => setCommenting(true)}
-                  onBlur={() => { if (!newComment.trim()) setCommenting(false) }}
                   onKeyDown={e => e.key === 'Enter' && addComment()}
                   placeholder="Escribe un comentario..."
                   className="flex-1 bg-slate-700 text-white text-sm px-4 py-3 rounded-xl border border-slate-600 focus:outline-none focus:border-[#7ab82a] placeholder-slate-500"
                 />
                 <button
-                  onClick={() => { addComment(); setCommenting(false) }}
+                  onClick={addComment}
                   className="bg-[#4a6478] text-white px-5 py-3 rounded-xl text-sm font-semibold hover:bg-[#3a5060] transition-colors flex-shrink-0"
                 >Enviar</button>
               </div>
+            </div>
+
+            {/* Botón abrir comentario — mobile */}
+            <div className="md:hidden px-4 py-3 border-t border-slate-700 flex-shrink-0">
+              <button
+                onClick={() => setCommenting(true)}
+                className="w-full bg-slate-700 text-slate-300 text-sm py-3 rounded-xl hover:bg-slate-600 transition-colors"
+              >+ Agregar comentario</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Overlay mobile para escribir comentario */}
+      {commenting && selectedImage && (
+        <div className="fixed inset-0 z-[60] md:hidden flex flex-col justify-end">
+          <div className="absolute inset-0 bg-black/60" onClick={() => { setCommenting(false); setNewComment('') }} />
+          <div className="relative bg-[#15202b] rounded-t-2xl px-4 pt-4 pb-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-white text-sm font-semibold">Agregar comentario</p>
+              <button onClick={() => { setCommenting(false); setNewComment('') }} className="text-slate-400 hover:text-white p-1">✕</button>
+            </div>
+            <div className="flex gap-2">
+              <input
+                autoFocus
+                value={newComment}
+                onChange={e => setNewComment(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && (addComment(), setCommenting(false))}
+                placeholder="Escribe tu comentario..."
+                className="flex-1 bg-slate-700 text-white text-base px-4 py-3.5 rounded-xl border border-slate-600 focus:outline-none focus:border-[#7ab82a] placeholder-slate-500"
+              />
+              <button
+                onClick={() => { addComment(); setCommenting(false) }}
+                disabled={!newComment.trim()}
+                className="bg-[#7ab82a] disabled:opacity-40 text-white px-5 py-3 rounded-xl text-sm font-bold hover:bg-[#6aa020] transition-colors flex-shrink-0"
+              >Enviar</button>
             </div>
           </div>
         </div>
