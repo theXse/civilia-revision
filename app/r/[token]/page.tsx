@@ -27,6 +27,38 @@ export default function ClientRegionPage() {
 
   useEffect(() => { loadRegion() }, [token])
 
+  // Realtime: actualiza imágenes y comentarios cuando el admin hace cambios
+  useEffect(() => {
+    const imgChannel = supabase
+      .channel('realtime-images')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'images' }, payload => {
+        const updated = payload.new as Img
+        setImages(prev => prev.map(i => i.id === updated.id ? updated : i))
+        setSelectedImage(prev => prev?.id === updated.id ? updated : prev)
+      })
+      .subscribe()
+
+    const cmtChannel = supabase
+      .channel('realtime-comments')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, payload => {
+        if (payload.eventType === 'INSERT') {
+          const c = payload.new as Comment
+          setComments(prev => prev.some(x => x.id === c.id) ? prev : [...prev, c])
+        } else if (payload.eventType === 'UPDATE') {
+          const c = payload.new as Comment
+          setComments(prev => prev.map(x => x.id === c.id ? c : x))
+        } else if (payload.eventType === 'DELETE') {
+          setComments(prev => prev.filter(x => x.id !== payload.old.id))
+        }
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(imgChannel)
+      supabase.removeChannel(cmtChannel)
+    }
+  }, [])
+
   async function loadRegion() {
     const { data } = await supabase.from('regions').select('*').eq('client_token', token).single()
     if (data) {
