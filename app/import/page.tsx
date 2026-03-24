@@ -96,10 +96,13 @@ export default function ImportPage() {
     const { data: projects } = await supabase.from('projects').select('id, name, region')
     const { data: deliveries } = await supabase.from('deliveries').select('id, name, project_id')
 
+    // Normalizar NFC para comparar (macOS usa NFD en nombres de carpeta)
+    const nfc = (s: string) => s.normalize('NFC').trim()
+
     // Group by region+project+category
     const groups = new Map<string, ParsedFile[]>()
     for (const f of parsed) {
-      const key = `${f.region}|||${f.project}|||${f.category}`
+      const key = `${nfc(f.region)}|||${nfc(f.project)}|||${nfc(f.category)}`
       if (!groups.has(key)) groups.set(key, [])
       groups.get(key)!.push(f)
     }
@@ -107,9 +110,9 @@ export default function ImportPage() {
     const items: PreviewItem[] = []
     for (const [key, files] of groups) {
       const [region, project, category] = key.split('|||')
-      const proj = (projects as Project[])?.find(p => p.name === project && p.region === region)
+      const proj = (projects as Project[])?.find(p => nfc(p.name) === nfc(project) && nfc(p.region) === nfc(region))
       const deliv = proj
-        ? (deliveries as Delivery[])?.find(d => d.name === category && d.project_id === proj.id)
+        ? (deliveries as Delivery[])?.find(d => nfc(d.name) === nfc(category) && d.project_id === proj.id)
         : undefined
       items.push({
         region, project, category, files,
