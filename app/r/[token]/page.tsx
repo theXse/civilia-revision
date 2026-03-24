@@ -18,7 +18,6 @@ export default function ClientRegionPage() {
   const [images, setImages] = useState<Img[]>([])
   const [selectedImage, setSelectedImage] = useState<Img | null>(null)
   const [comments, setComments] = useState<Comment[]>([])
-  const [author, setAuthor] = useState('')
   const [newComment, setNewComment] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -63,8 +62,8 @@ export default function ClientRegionPage() {
   }
 
   async function addComment() {
-    if (!newComment.trim() || !author.trim() || !selectedImage) return
-    const { data } = await supabase.from('comments').insert({ image_id: selectedImage.id, author, content: newComment }).select().single()
+    if (!newComment.trim() || !selectedImage) return
+    const { data } = await supabase.from('comments').insert({ image_id: selectedImage.id, author: 'Cliente', content: newComment }).select().single()
     if (data) { setComments([...comments, data]); setNewComment('') }
   }
 
@@ -175,12 +174,6 @@ export default function ClientRegionPage() {
                 </div>
               )}
               <div className="flex gap-2 pt-3">
-                <input
-                  value={author}
-                  onChange={e => setAuthor(e.target.value)}
-                  placeholder="Tu nombre"
-                  className="w-24 md:w-32 bg-slate-700 text-white text-sm px-3 py-2.5 rounded-xl border border-slate-600 focus:outline-none focus:border-[#7ab82a] placeholder-slate-500"
-                />
                 <input
                   value={newComment}
                   onChange={e => setNewComment(e.target.value)}
