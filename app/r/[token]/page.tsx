@@ -317,7 +317,13 @@ export default function ClientRegionPage() {
               {comments.map(c => (
                 <div key={c.id} className={`rounded-xl px-3 py-2.5 ${c.resolved ? 'bg-slate-800/40' : 'bg-slate-800'}`}>
                   <p className={`text-sm ${c.resolved ? 'line-through text-slate-500' : 'text-slate-300'}`}>{c.content}</p>
-                  {c.resolved && <p className="text-xs text-slate-600 mt-0.5">Resuelto</p>}
+                  {c.resolved && <p className="text-xs text-slate-600 mt-0.5">Resuelto ✓</p>}
+                  {c.reply && (
+                    <div className="mt-2 bg-[#15202b] border-l-2 border-blue-400 rounded-r-lg px-2.5 py-2">
+                      <p className="text-xs font-semibold text-blue-400 mb-0.5">La Ruta</p>
+                      <p className="text-slate-300 text-sm">{c.reply}</p>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
