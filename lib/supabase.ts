@@ -20,6 +20,7 @@ export type Project = {
   archived: boolean
   archived_at: string | null
   notes: string
+  ready_for_social: boolean
   created_at: string
 }
 

@@ -227,11 +227,18 @@ function ProjectCard({ p, act, onArchive, onDelete }: {
   const [showNotes, setShowNotes] = useState(false)
   const [notes, setNotes] = useState(p.notes || '')
   const [saving, setSaving] = useState(false)
+  const [ready, setReady] = useState(p.ready_for_social || false)
 
   async function saveNotes() {
     setSaving(true)
     await supabase.from('projects').update({ notes }).eq('id', p.id)
     setSaving(false)
+  }
+
+  async function toggleReady() {
+    const val = !ready
+    await supabase.from('projects').update({ ready_for_social: val }).eq('id', p.id)
+    setReady(val)
   }
 
   return (
@@ -252,6 +259,11 @@ function ProjectCard({ p, act, onArchive, onDelete }: {
           )}
         </div>
         <div className="flex gap-1 items-center flex-shrink-0">
+          <button
+            onClick={toggleReady}
+            title={ready ? 'Quitar estado listo para redes' : 'Marcar como listo para redes'}
+            className={`text-xs px-2.5 py-1.5 rounded-lg font-semibold transition-all ${ready ? 'bg-[#7ab82a] text-white shadow-sm' : 'text-slate-400 hover:text-[#7ab82a] opacity-0 group-hover:opacity-100'}`}
+          >{ready ? '✓ Listo para redes' : '🌐 Redes'}</button>
           <button
             onClick={() => setShowNotes(!showNotes)}
             title="Nota para diseñadora"
