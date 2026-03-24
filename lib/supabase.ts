@@ -5,6 +5,12 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
+export type Region = {
+  id: string
+  name: string
+  client_token: string
+}
+
 export type Project = {
   id: string
   name: string

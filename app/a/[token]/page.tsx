@@ -50,7 +50,7 @@ export default function AdminPage() {
   }
 
   async function deleteDelivery(deliveryId: string) {
-    if (!window.confirm('¿Eliminar esta entrega y todas sus imágenes?')) return
+    if (!window.confirm('¿Eliminar esta categoría y todas sus imágenes?')) return
     await supabase.from('images').delete().eq('delivery_id', deliveryId)
     await supabase.from('deliveries').delete().eq('id', deliveryId)
     setDeliveries(deliveries.filter(d => d.id !== deliveryId))
@@ -125,13 +125,13 @@ export default function AdminPage() {
 
       <div className="flex flex-1 overflow-hidden">
         <div className="w-64 bg-[#15202b] border-r border-slate-700 p-4 overflow-y-auto flex flex-col gap-2">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Entregas</p>
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Categorías</p>
           <div className="flex gap-2">
             <input
               value={newDelivery}
               onChange={e => setNewDelivery(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && createDelivery()}
-              placeholder="Nueva entrega..."
+              placeholder="Nueva categoría..."
               className="flex-1 bg-slate-700 text-white text-sm px-3 py-2 rounded-lg border border-slate-600 focus:outline-none focus:border-[#7ab82a] placeholder-slate-400"
             />
             <button
@@ -149,7 +149,7 @@ export default function AdminPage() {
               <button
                 onClick={e => { e.stopPropagation(); deleteDelivery(d.id) }}
                 className="px-2 py-2 text-slate-500 hover:text-red-400 transition-colors text-xs flex-shrink-0"
-                title="Eliminar entrega"
+                title="Eliminar categoría"
               >✕</button>
             </div>
           ))}
@@ -178,7 +178,7 @@ export default function AdminPage() {
               </div>
             </>
           ) : (
-            <div className="flex items-center justify-center h-full text-slate-500">Selecciona una entrega</div>
+            <div className="flex items-center justify-center h-full text-slate-500">Selecciona una categoría</div>
           )}
         </div>
 
