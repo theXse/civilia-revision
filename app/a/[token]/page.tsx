@@ -267,6 +267,9 @@ export default function AdminPage() {
         </div>
         <div className="flex gap-2">
           <a href="/" className="text-xs bg-slate-700 text-slate-200 px-3 py-2 rounded-lg hover:bg-slate-600 transition-colors">← Inicio</a>
+          <a href={`/a/${token}/resumen`} target="_blank" className="text-xs bg-slate-700 text-slate-200 px-3 py-2 rounded-lg hover:bg-slate-600 transition-colors">
+            <span className="hidden sm:inline">Resumen </span>📋
+          </a>
           <button
             onClick={exportCSV}
             className="text-xs bg-slate-700 text-slate-200 px-3 py-2 rounded-lg hover:bg-slate-600 transition-colors"
