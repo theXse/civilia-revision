@@ -38,6 +38,7 @@ export type Image = {
   name: string
   status: 'pending' | 'approved' | 'changes_requested' | 'revised'
   published: boolean
+  sort_order: number
   created_at: string
 }
 

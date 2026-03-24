@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import type { Project, Delivery, Image as Img, Comment, Region, ProjectComment } from '@/lib/supabase'
@@ -24,6 +24,8 @@ export default function AdminPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({})
   const [editingComment, setEditingComment] = useState<string | null>(null)
+  const [dragOver, setDragOver] = useState<string | null>(null)
+  const dragItem = useRef<string | null>(null)
   const [editingText, setEditingText] = useState('')
   const [generalComments, setGeneralComments] = useState<ProjectComment[]>([])
   const [showGeneral, setShowGeneral] = useState(false)
@@ -86,7 +88,7 @@ export default function AdminPage() {
   }
 
   async function loadImages(deliveryId: string) {
-    const { data } = await supabase.from('images').select('*').eq('delivery_id', deliveryId).order('created_at')
+    const { data } = await supabase.from('images').select('*').eq('delivery_id', deliveryId).order('sort_order').order('created_at')
     const imgs = data || []
     setImages(imgs)
     if (imgs.length > 0) {
@@ -96,6 +98,21 @@ export default function AdminPage() {
       for (const c of (cData || [])) counts[c.image_id] = (counts[c.image_id] || 0) + 1
       setCommentCounts(counts)
     }
+  }
+
+  async function handleDrop(targetId: string) {
+    const fromId = dragItem.current
+    if (!fromId || fromId === targetId) { setDragOver(null); return }
+    const from = images.findIndex(i => i.id === fromId)
+    const to = images.findIndex(i => i.id === targetId)
+    const reordered = [...images]
+    const [moved] = reordered.splice(from, 1)
+    reordered.splice(to, 0, moved)
+    const updated = reordered.map((img, idx) => ({ ...img, sort_order: idx }))
+    setImages(updated)
+    setDragOver(null)
+    dragItem.current = null
+    await Promise.all(updated.map(img => supabase.from('images').update({ sort_order: img.sort_order }).eq('id', img.id)))
   }
 
   async function loadComments(imageId: string) {
@@ -433,7 +450,13 @@ export default function AdminPage() {
                 {images.map((img, idx) => (
                   <div
                     key={img.id}
-                    className={`relative rounded-2xl overflow-hidden cursor-pointer group shadow-lg ${statusBorder(img.status)} ${selectedImage?.id === img.id ? 'ring-2 ring-white/30' : ''}`}
+                    draggable
+                    onDragStart={() => { dragItem.current = img.id }}
+                    onDragOver={e => { e.preventDefault(); setDragOver(img.id) }}
+                    onDragLeave={() => setDragOver(null)}
+                    onDrop={() => handleDrop(img.id)}
+                    onDragEnd={() => { setDragOver(null); dragItem.current = null }}
+                    className={`relative rounded-2xl overflow-hidden cursor-grab active:cursor-grabbing group shadow-lg transition-transform ${statusBorder(img.status)} ${selectedImage?.id === img.id ? 'ring-2 ring-white/30' : ''} ${dragOver === img.id ? 'scale-105 ring-2 ring-blue-400' : ''}`}
                     onClick={() => selectImage(img)}
                   >
                     <div className="relative h-36 md:h-48 bg-slate-700">
