@@ -22,6 +22,7 @@ export default function AdminPage() {
   const [lightbox, setLightbox] = useState<Img | null>(null)
   const [region, setRegion] = useState<Region | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({})
 
   useEffect(() => { loadProject() }, [token])
 
@@ -50,7 +51,15 @@ export default function AdminPage() {
 
   async function loadImages(deliveryId: string) {
     const { data } = await supabase.from('images').select('*').eq('delivery_id', deliveryId).order('created_at')
-    setImages(data || [])
+    const imgs = data || []
+    setImages(imgs)
+    if (imgs.length > 0) {
+      const { data: cData } = await supabase
+        .from('comments').select('image_id').in('image_id', imgs.map(i => i.id))
+      const counts: Record<string, number> = {}
+      for (const c of (cData || [])) counts[c.image_id] = (counts[c.image_id] || 0) + 1
+      setCommentCounts(counts)
+    }
   }
 
   async function loadComments(imageId: string) {
@@ -199,19 +208,34 @@ export default function AdminPage() {
               className="bg-[#7ab82a] text-white px-4 py-2.5 rounded-lg text-lg font-bold hover:bg-[#6aa020] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >+</button>
           </div>
-          {deliveries.map(d => (
-            <div key={d.id} className={`flex items-center rounded-xl transition-colors ${selectedDelivery?.id === d.id ? 'bg-[#4a6478]' : 'hover:bg-slate-700'}`}>
-              <button
-                onClick={() => selectDelivery(d)}
-                className={`flex-1 text-left px-3 py-3 text-sm font-medium truncate ${selectedDelivery?.id === d.id ? 'text-white' : 'text-slate-300'}`}
-              >{d.name}</button>
-              <button
-                onClick={e => { e.stopPropagation(); deleteDelivery(d.id) }}
-                className="px-3 py-3 text-slate-500 hover:text-red-400 transition-colors flex-shrink-0"
-                title="Eliminar categoría"
-              >✕</button>
-            </div>
-          ))}
+          {deliveries.map(d => {
+            // Contar comentarios en imágenes de esta categoría
+            const deliveryComments = images
+              .filter(img => img.delivery_id === d.id)
+              .reduce((sum, img) => sum + (commentCounts[img.id] || 0), 0)
+            const hasChanges = images.filter(img => img.delivery_id === d.id && img.status === 'changes_requested').length
+            return (
+              <div key={d.id} className={`flex items-center rounded-xl transition-colors ${selectedDelivery?.id === d.id ? 'bg-[#4a6478]' : 'hover:bg-slate-700'}`}>
+                <button
+                  onClick={() => selectDelivery(d)}
+                  className={`flex-1 text-left px-3 py-3 text-sm font-medium truncate ${selectedDelivery?.id === d.id ? 'text-white' : 'text-slate-300'}`}
+                >{d.name}</button>
+                <div className="flex items-center gap-1 pr-1">
+                  {deliveryComments > 0 && (
+                    <span className="bg-yellow-400 text-black text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center">{deliveryComments}</span>
+                  )}
+                  {hasChanges > 0 && (
+                    <span className="bg-red-500 text-white text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center">{hasChanges}</span>
+                  )}
+                </div>
+                <button
+                  onClick={e => { e.stopPropagation(); deleteDelivery(d.id) }}
+                  className="px-2 py-3 text-slate-500 hover:text-red-400 transition-colors flex-shrink-0"
+                  title="Eliminar categoría"
+                >✕</button>
+              </div>
+            )
+          })}
         </div>
 
         {/* Área principal */}
@@ -240,6 +264,11 @@ export default function AdminPage() {
                         decoding="async"
                         className="w-full h-full object-cover"
                       />
+                      {commentCounts[img.id] > 0 && (
+                        <div className="absolute top-2 left-2 bg-yellow-400 text-black text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow">
+                          {commentCounts[img.id]}
+                        </div>
+                      )}
                     </div>
                     <div className="absolute bottom-0 left-0 right-0 bg-[#15202b]/95 px-2 md:px-3 py-2 flex justify-between items-center">
                       {statusBadge(img.status)}

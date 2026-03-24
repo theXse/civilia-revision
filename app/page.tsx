@@ -10,6 +10,7 @@ const REGIONS = ['Osorno', 'Santiago', 'Valdivia', 'Concepción']
 export default function Home() {
   const [projects, setProjects] = useState<Project[]>([])
   const [regions, setRegions] = useState<Region[]>([])
+  const [activity, setActivity] = useState<Record<string, { comments: number; changes: number }>>({})
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -17,7 +18,43 @@ export default function Home() {
       supabase.from('projects').select('*').order('name').then(({ data }) => setProjects(data || [])),
       supabase.from('regions').select('*').then(({ data }) => setRegions(data || [])),
     ]).then(() => setLoading(false))
+
+    loadActivity()
   }, [])
+
+  async function loadActivity() {
+    // Obtener deliveries con su project_id
+    const { data: deliveries } = await supabase.from('deliveries').select('id, project_id')
+    if (!deliveries?.length) return
+    const deliveryToProject: Record<string, string> = {}
+    for (const d of deliveries) deliveryToProject[d.id] = d.project_id
+
+    // Comentarios: agrupar por proyecto via delivery
+    const { data: images } = await supabase.from('images').select('id, delivery_id, status')
+    if (!images?.length) return
+    const imageToProject: Record<string, string> = {}
+    const changesPerProject: Record<string, number> = {}
+    for (const img of images) {
+      const pId = deliveryToProject[img.delivery_id]
+      if (!pId) continue
+      imageToProject[img.id] = pId
+      if (img.status === 'changes_requested') changesPerProject[pId] = (changesPerProject[pId] || 0) + 1
+    }
+
+    const { data: comments } = await supabase.from('comments').select('image_id')
+    const commentsPerProject: Record<string, number> = {}
+    for (const c of (comments || [])) {
+      const pId = imageToProject[c.image_id]
+      if (pId) commentsPerProject[pId] = (commentsPerProject[pId] || 0) + 1
+    }
+
+    const result: Record<string, { comments: number; changes: number }> = {}
+    const allProjectIds = new Set([...Object.keys(commentsPerProject), ...Object.keys(changesPerProject)])
+    for (const pId of allProjectIds) {
+      result[pId] = { comments: commentsPerProject[pId] || 0, changes: changesPerProject[pId] || 0 }
+    }
+    setActivity(result)
+  }
 
   async function deleteProject(id: string) {
     if (!window.confirm('¿Eliminar este proyecto?')) return
@@ -48,25 +85,37 @@ export default function Home() {
                 <div className="bg-[#4a6478] px-4 md:px-6 py-3 md:py-4 flex items-center justify-between gap-2">
                   <h2 className="text-white font-semibold text-sm md:text-base tracking-wide">{region}</h2>
                   {regionToken && (
-                    <a
-                      href={`/r/${regionToken}`}
-                      target="_blank"
-                      className="text-xs bg-[#7ab82a] text-white px-3 py-2 rounded-lg font-medium hover:bg-[#6aa020] transition-colors whitespace-nowrap"
-                    >
+                    <a href={`/r/${regionToken}`} target="_blank" className="text-xs bg-[#7ab82a] text-white px-3 py-2 rounded-lg font-medium hover:bg-[#6aa020] transition-colors whitespace-nowrap">
                       Ver link ↗
                     </a>
                   )}
                 </div>
                 <div className="p-3 md:p-4 space-y-2">
-                  {projects.filter(p => p.region === region).map(p => (
-                    <div key={p.id} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl px-3 md:px-4 py-3 group">
-                      <span className="font-medium text-slate-700 text-sm truncate flex-1 mr-2">{p.name}</span>
-                      <div className="flex gap-2 items-center flex-shrink-0">
-                        <a href={`/a/${p.admin_token}`} target="_blank" className="text-xs bg-[#4a6478] text-white px-2.5 py-1.5 rounded-lg font-medium hover:bg-[#3a5060] transition-colors">Admin</a>
-                        <button onClick={() => deleteProject(p.id)} className="text-xs text-red-400 hover:text-red-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
+                  {projects.filter(p => p.region === region).map(p => {
+                    const act = activity[p.id]
+                    return (
+                      <div key={p.id} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl px-3 md:px-4 py-3 group">
+                        <div className="flex items-center gap-2 flex-1 min-w-0 mr-2">
+                          <span className="font-medium text-slate-700 text-sm truncate">{p.name}</span>
+                          {act?.changes > 0 && (
+                            <span className="flex-shrink-0 flex items-center gap-1 bg-red-100 text-red-600 text-xs font-semibold px-2 py-0.5 rounded-full">
+                              <span className="w-1.5 h-1.5 bg-red-500 rounded-full inline-block" />
+                              {act.changes} cambios
+                            </span>
+                          )}
+                          {act?.comments > 0 && act?.changes === 0 && (
+                            <span className="flex-shrink-0 flex items-center gap-1 bg-yellow-100 text-yellow-700 text-xs font-semibold px-2 py-0.5 rounded-full">
+                              💬 {act.comments}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex gap-2 items-center flex-shrink-0">
+                          <a href={`/a/${p.admin_token}`} target="_blank" className="text-xs bg-[#4a6478] text-white px-2.5 py-1.5 rounded-lg font-medium hover:bg-[#3a5060] transition-colors">Admin</a>
+                          <button onClick={() => deleteProject(p.id)} className="text-xs text-red-400 hover:text-red-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                   {projects.filter(p => p.region === region).length === 0 && (
                     <p className="text-slate-400 text-sm text-center py-4">Sin proyectos</p>
                   )}
