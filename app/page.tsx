@@ -36,7 +36,8 @@ export default function Home() {
       <header className="bg-white shadow-sm px-4 md:px-8 py-3 md:py-4 flex items-center gap-3">
         <Image src="/logo.png" alt="Civilia" width={120} height={40} className="object-contain" />
         <div className="h-6 w-px bg-slate-200" />
-        <span className="text-slate-500 font-medium text-xs md:text-sm tracking-wide uppercase">Portal de Revisión</span>
+        <span className="text-slate-500 font-medium text-xs md:text-sm tracking-wide uppercase flex-1">Portal de Revisión</span>
+        <a href="/import" className="text-xs bg-[#4a6478] text-white px-3 py-2 rounded-lg hover:bg-[#3a5060] transition-colors font-medium">⬆ Importar</a>
       </header>
       <div className="max-w-6xl mx-auto p-4 md:p-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
