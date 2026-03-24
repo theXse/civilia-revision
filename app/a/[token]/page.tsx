@@ -227,8 +227,12 @@ export default function AdminPage() {
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
                 {images.map(img => (
-                  <div key={img.id} className={`relative rounded-2xl overflow-hidden cursor-pointer group shadow-lg ${statusBorder(img.status)}`}>
-                    <div className="relative h-36 md:h-48 bg-slate-700" onClick={() => setLightbox(img)}>
+                  <div
+                    key={img.id}
+                    className={`relative rounded-2xl overflow-hidden cursor-pointer group shadow-lg ${statusBorder(img.status)} ${selectedImage?.id === img.id ? 'ring-2 ring-white/30' : ''}`}
+                    onClick={() => selectImage(img)}
+                  >
+                    <div className="relative h-36 md:h-48 bg-slate-700">
                       <img
                         src={thumbUrl(img.url)}
                         alt={img.name}
@@ -255,22 +259,43 @@ export default function AdminPage() {
           )}
         </div>
 
-        {/* Panel de comentarios (desktop) */}
+        {/* Panel de comentarios — mobile: overlay full screen, desktop: panel lateral */}
         {selectedImage && (
-          <div className="hidden md:flex w-80 bg-[#15202b] border-l border-slate-700 p-4 overflow-y-auto flex-col">
-            <img src={selectedImage.url} alt={selectedImage.name} className="w-full rounded-xl mb-3 cursor-zoom-in" onClick={() => setLightbox(selectedImage)} />
-            <p className="text-xs text-slate-500 mb-4 truncate">{selectedImage.name}</p>
-            <h3 className="text-sm font-semibold text-slate-300 mb-3">Comentarios</h3>
-            {comments.length === 0 && <p className="text-slate-500 text-sm mb-3">Sin comentarios</p>}
-            {comments.map(c => (
-              <div key={c.id} className="bg-slate-700 border border-slate-600 rounded-xl p-3 mb-2">
-                <div className="flex justify-between items-start">
-                  <span className="font-semibold text-[#7ab82a] text-sm">{c.author}</span>
-                  <button onClick={() => deleteComment(c.id)} className="text-red-400 hover:text-red-300 text-xs">✕</button>
+          <div className="fixed inset-0 z-40 bg-[#15202b] overflow-y-auto p-4 md:relative md:inset-auto md:z-auto md:w-80 md:border-l md:border-slate-700 flex flex-col">
+            <div className="flex justify-between items-center mb-3">
+              <p className="text-xs text-slate-500 truncate flex-1 mr-2">{selectedImage.name}</p>
+              <button onClick={() => setSelectedImage(null)} className="text-slate-400 hover:text-white p-1 flex-shrink-0">✕</button>
+            </div>
+            <img
+              src={thumbUrl(selectedImage.url)}
+              alt={selectedImage.name}
+              className="w-full rounded-xl mb-3 cursor-zoom-in"
+              onClick={() => setLightbox(selectedImage)}
+            />
+            <button
+              onClick={() => setLightbox(selectedImage)}
+              className="w-full text-xs bg-slate-700 text-slate-300 py-2 rounded-xl mb-4 hover:bg-slate-600 transition-colors"
+            >🔍 Ver imagen completa</button>
+
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-slate-300">Comentarios del cliente</h3>
+              {comments.length > 0 && (
+                <span className="text-xs bg-[#7ab82a] text-white px-2 py-0.5 rounded-full">{comments.length}</span>
+              )}
+            </div>
+            {comments.length === 0
+              ? <p className="text-slate-500 text-sm">Sin comentarios aún</p>
+              : comments.map(c => (
+                <div key={c.id} className="bg-slate-700 border border-slate-600 rounded-xl p-3 mb-2">
+                  <div className="flex justify-between items-start mb-1">
+                    <span className="font-semibold text-[#7ab82a] text-sm">{c.author}</span>
+                    <button onClick={() => deleteComment(c.id)} className="text-red-400 hover:text-red-300 text-xs p-0.5">✕</button>
+                  </div>
+                  <p className="text-slate-300 text-sm">{c.content}</p>
+                  <p className="text-slate-600 text-xs mt-1">{new Date(c.created_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
-                <p className="text-slate-300 text-sm mt-1">{c.content}</p>
-              </div>
-            ))}
+              ))
+            }
           </div>
         )}
       </div>
