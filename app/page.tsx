@@ -22,6 +22,8 @@ export default function Home() {
     ]).then(() => setLoading(false))
 
     loadActivity()
+    window.addEventListener('focus', loadActivity)
+    return () => window.removeEventListener('focus', loadActivity)
   }, [])
 
   async function loadActivity() {
