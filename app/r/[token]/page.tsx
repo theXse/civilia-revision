@@ -22,7 +22,6 @@ export default function ClientRegionPage() {
   const [newComment, setNewComment] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [lightbox, setLightbox] = useState<Img | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => { loadRegion() }, [token])
@@ -124,11 +123,71 @@ export default function ClientRegionPage() {
 
   return (
     <div className="min-h-screen bg-[#1e2a36] flex flex-col">
-      {/* Lightbox */}
-      {lightbox && (
-        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4" onClick={() => setLightbox(null)}>
-          <img src={lightbox.url} alt={lightbox.name} className="max-h-[90vh] max-w-[90vw] rounded-xl shadow-2xl" />
-          <button className="absolute top-4 right-6 text-white text-3xl font-bold" onClick={() => setLightbox(null)}>✕</button>
+      {/* Modal de imagen: imagen grande + acciones + comentarios */}
+      {selectedImage && (
+        <div className="fixed inset-0 z-50 bg-black/95 flex flex-col overflow-hidden">
+          {/* Barra superior */}
+          <div className="flex items-center justify-between px-4 py-3 bg-[#15202b] flex-shrink-0">
+            <div className="flex items-center gap-3">
+              {statusBadge(selectedImage.status)}
+              <p className="text-slate-400 text-xs truncate max-w-[180px] md:max-w-xs">{selectedImage.name}</p>
+            </div>
+            <button onClick={() => setSelectedImage(null)} className="text-white text-2xl leading-none p-1 hover:text-slate-300">✕</button>
+          </div>
+
+          {/* Imagen grande */}
+          <div className="flex-1 flex items-center justify-center overflow-hidden min-h-0 bg-black">
+            <img
+              src={selectedImage.url}
+              alt={selectedImage.name}
+              className="max-h-full max-w-full object-contain"
+            />
+          </div>
+
+          {/* Acciones y comentarios */}
+          <div className="bg-[#15202b] flex-shrink-0 overflow-y-auto max-h-[45vh] md:max-h-[35vh]">
+            {/* Botones aprobar / cambios */}
+            <div className="flex gap-3 px-4 pt-4 pb-3">
+              <button
+                onClick={() => updateStatus('approved')}
+                className={`flex-1 py-3 rounded-xl text-sm font-bold transition-colors ${selectedImage.status === 'approved' ? 'bg-[#7ab82a] text-white' : 'bg-slate-700 text-slate-300 hover:bg-[#7ab82a] hover:text-white'}`}
+              >✓ Aprobar</button>
+              <button
+                onClick={() => updateStatus('changes_requested')}
+                className={`flex-1 py-3 rounded-xl text-sm font-bold transition-colors ${selectedImage.status === 'changes_requested' ? 'bg-red-500 text-white' : 'bg-slate-700 text-slate-300 hover:bg-red-500 hover:text-white'}`}
+              >✗ Solicitar cambios</button>
+            </div>
+
+            {/* Comentarios */}
+            <div className="px-4 pb-4">
+              {comments.length > 0 && (
+                <div className="mb-3 space-y-2">
+                  {comments.map(c => (
+                    <div key={c.id} className="bg-slate-800 rounded-xl p-3">
+                      <span className="font-semibold text-[#7ab82a] text-sm">{c.author}</span>
+                      <p className="text-slate-300 text-sm mt-0.5">{c.content}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <input
+                  value={author}
+                  onChange={e => setAuthor(e.target.value)}
+                  placeholder="Tu nombre"
+                  className="w-28 bg-slate-700 text-white text-sm px-3 py-2.5 rounded-xl border border-slate-600 focus:outline-none focus:border-[#7ab82a] placeholder-slate-400"
+                />
+                <input
+                  value={newComment}
+                  onChange={e => setNewComment(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addComment()}
+                  placeholder="Escribe un comentario..."
+                  className="flex-1 bg-slate-700 text-white text-sm px-3 py-2.5 rounded-xl border border-slate-600 focus:outline-none focus:border-[#7ab82a] placeholder-slate-400"
+                />
+                <button onClick={addComment} className="bg-[#4a6478] text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#3a5060] transition-colors flex-shrink-0">Enviar</button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -253,63 +312,6 @@ export default function ClientRegionPage() {
             )}
           </div>
 
-          {/* Panel de aprobación y comentarios
-              - Mobile: overlay pantalla completa
-              - Desktop: panel lateral derecho */}
-          {selectedImage && (
-            <div className="fixed inset-0 z-40 bg-[#15202b] overflow-y-auto p-4 md:relative md:inset-auto md:z-auto md:w-80 md:border-l md:border-slate-700">
-              <div className="flex justify-between items-center mb-3">
-                <p className="text-xs text-slate-500 truncate flex-1 mr-2">{selectedImage.name}</p>
-                <button
-                  onClick={() => setSelectedImage(null)}
-                  className="text-slate-400 hover:text-white text-lg leading-none flex-shrink-0 p-1"
-                >✕</button>
-              </div>
-              <img
-                src={selectedImage.url}
-                alt={selectedImage.name}
-                className="w-full rounded-xl mb-3 cursor-zoom-in"
-                onClick={() => setLightbox(selectedImage)}
-              />
-              <div className="flex gap-2 mb-4">
-                <button
-                  onClick={() => updateStatus('approved')}
-                  className="flex-1 bg-[#7ab82a] hover:bg-[#6aa020] text-white text-sm py-3 rounded-xl font-semibold transition-colors"
-                >✓ Aprobar</button>
-                <button
-                  onClick={() => updateStatus('changes_requested')}
-                  className="flex-1 bg-red-500 hover:bg-red-600 text-white text-sm py-3 rounded-xl font-semibold transition-colors"
-                >✗ Cambios</button>
-              </div>
-              <h3 className="text-sm font-semibold text-slate-300 mb-3">Comentarios</h3>
-              {comments.length === 0 && <p className="text-slate-500 text-sm mb-3">Sin comentarios</p>}
-              {comments.map(c => (
-                <div key={c.id} className="bg-slate-700 border border-slate-600 rounded-xl p-3 mb-2">
-                  <span className="font-semibold text-[#7ab82a] text-sm">{c.author}</span>
-                  <p className="text-slate-300 text-sm mt-1">{c.content}</p>
-                </div>
-              ))}
-              <div className="mt-4 space-y-2">
-                <input
-                  value={author}
-                  onChange={e => setAuthor(e.target.value)}
-                  placeholder="Tu nombre"
-                  className="w-full bg-slate-700 text-white text-sm px-3 py-3 rounded-xl border border-slate-600 focus:outline-none focus:border-[#7ab82a] placeholder-slate-400"
-                />
-                <textarea
-                  value={newComment}
-                  onChange={e => setNewComment(e.target.value)}
-                  placeholder="Escribe un comentario..."
-                  rows={3}
-                  className="w-full bg-slate-700 text-white text-sm px-3 py-3 rounded-xl border border-slate-600 focus:outline-none focus:border-[#7ab82a] placeholder-slate-400 resize-none"
-                />
-                <button
-                  onClick={addComment}
-                  className="w-full bg-[#4a6478] text-white py-3 rounded-xl text-sm font-semibold hover:bg-[#3a5060] transition-colors"
-                >Comentar</button>
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>
