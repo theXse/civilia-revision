@@ -24,6 +24,8 @@ export default function AdminPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({})
   const [editingComment, setEditingComment] = useState<string | null>(null)
+  const [replyingTo, setReplyingTo] = useState<string | null>(null)
+  const [replyText, setReplyText] = useState('')
   const [dragOver, setDragOver] = useState<string | null>(null)
   const dragItem = useRef<string | null>(null)
   const [dragOverDelivery, setDragOverDelivery] = useState<string | null>(null)
@@ -191,6 +193,15 @@ export default function AdminPage() {
   async function deleteComment(commentId: string) {
     await supabase.from('comments').delete().eq('id', commentId)
     setComments(comments.filter(c => c.id !== commentId))
+  }
+
+  async function saveReply(commentId: string) {
+    if (!replyText.trim()) return
+    const replied_at = new Date().toISOString()
+    await supabase.from('comments').update({ reply: replyText.trim(), replied_at }).eq('id', commentId)
+    setComments(comments.map(c => c.id === commentId ? { ...c, reply: replyText.trim(), replied_at } : c))
+    setReplyingTo(null)
+    setReplyText('')
   }
 
   async function saveEditComment(commentId: string) {
@@ -577,6 +588,11 @@ export default function AdminPage() {
                     <span className={`font-semibold text-sm ${c.resolved ? 'text-slate-500' : 'text-[#7ab82a]'}`}>{c.author}</span>
                     <div className="flex gap-1">
                       <button
+                        onClick={() => { setReplyingTo(c.id); setReplyText(c.reply || '') }}
+                        title="Responder al cliente"
+                        className={`text-xs px-1.5 py-0.5 rounded-lg transition-colors ${c.reply ? 'bg-blue-500/20 text-blue-300 hover:bg-blue-500/30' : 'bg-slate-600 text-slate-300 hover:bg-slate-500'}`}
+                      >↩</button>
+                      <button
                         onClick={() => { setEditingComment(c.id); setEditingText(c.content) }}
                         title="Editar comentario"
                         className="text-xs px-1.5 py-0.5 rounded-lg bg-slate-600 text-slate-300 hover:bg-slate-500 transition-colors"
@@ -605,6 +621,30 @@ export default function AdminPage() {
                     <p className={`text-sm ${c.resolved ? 'line-through text-slate-500' : 'text-slate-300'}`}>{c.content}</p>
                   )}
                   <p className="text-slate-600 text-xs mt-1">{new Date(c.created_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+                  {/* Respuesta del admin */}
+                  {c.reply && replyingTo !== c.id && (
+                    <div className="mt-2 bg-[#1e2a36] border-l-2 border-blue-400 rounded-r-lg px-2.5 py-2">
+                      <p className="text-xs font-semibold text-blue-400 mb-0.5">La Ruta</p>
+                      <p className="text-slate-300 text-sm">{c.reply}</p>
+                    </div>
+                  )}
+                  {/* Input respuesta */}
+                  {replyingTo === c.id && (
+                    <div className="mt-2 flex gap-2">
+                      <textarea
+                        value={replyText}
+                        onChange={e => setReplyText(e.target.value)}
+                        placeholder="Escribe tu respuesta..."
+                        rows={2}
+                        className="flex-1 bg-slate-600 text-white text-sm px-2 py-1.5 rounded-lg border border-blue-400/50 focus:outline-none focus:border-blue-400 resize-none placeholder-slate-400"
+                        autoFocus
+                      />
+                      <div className="flex flex-col gap-1">
+                        <button onClick={() => saveReply(c.id)} className="text-xs bg-blue-500 hover:bg-blue-400 text-white px-2 py-1 rounded-lg">✓</button>
+                        <button onClick={() => setReplyingTo(null)} className="text-xs text-slate-400 px-2 py-1">✕</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))
             }

@@ -48,6 +48,8 @@ export type Comment = {
   author: string
   content: string
   resolved: boolean
+  reply: string
+  replied_at: string | null
   created_at: string
 }
 
