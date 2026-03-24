@@ -33,6 +33,7 @@ export type Image = {
   url: string
   name: string
   status: 'pending' | 'approved' | 'changes_requested' | 'revised'
+  published: boolean
   created_at: string
 }
 
