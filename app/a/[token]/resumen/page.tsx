@@ -13,6 +13,7 @@ export default function ResumenPage() {
   const [imagesByDelivery, setImagesByDelivery] = useState<Record<string, Img[]>>({})
   const [commentsByImage, setCommentsByImage] = useState<Record<string, Comment[]>>({})
   const [loading, setLoading] = useState(true)
+  const [lightbox, setLightbox] = useState<string | null>(null)
 
   useEffect(() => { loadAll() }, [token])
 
@@ -62,6 +63,12 @@ export default function ResumenPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      {lightbox && (
+        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 print:hidden" onClick={() => setLightbox(null)}>
+          <img src={lightbox} alt="" className="max-h-[90vh] max-w-[90vw] rounded-xl shadow-2xl" />
+          <button className="absolute top-4 right-6 text-white text-3xl font-bold" onClick={() => setLightbox(null)}>✕</button>
+        </div>
+      )}
       {/* Header */}
       <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between print:hidden">
         <div className="flex items-center gap-3">
@@ -123,7 +130,7 @@ export default function ResumenPage() {
                   return (
                     <div key={img.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
                       <div className="flex items-center gap-3 px-4 py-3">
-                        <img src={img.url} alt={`Lámina ${idx + 1}`} className="w-16 h-12 object-cover rounded-lg flex-shrink-0 bg-slate-100" />
+                        <img src={img.url} alt={`Lámina ${idx + 1}`} onClick={() => setLightbox(img.url)} className="w-16 h-12 object-cover rounded-lg flex-shrink-0 bg-slate-100 cursor-zoom-in hover:opacity-80 transition-opacity" />
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-slate-700 text-sm">Lámina {idx + 1}</p>
                           <p className="text-slate-400 text-xs truncate">{img.name}</p>
