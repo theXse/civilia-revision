@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import type { Project, Delivery, Image as Img, Comment, Region } from '@/lib/supabase'
+import type { Project, Delivery, Image as Img, Comment, Region, ProjectComment } from '@/lib/supabase'
 import Image from 'next/image'
 import { thumbUrl, resizeForUpload } from '@/lib/imageUtils'
 
@@ -23,6 +23,10 @@ export default function AdminPage() {
   const [region, setRegion] = useState<Region | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({})
+  const [editingComment, setEditingComment] = useState<string | null>(null)
+  const [editingText, setEditingText] = useState('')
+  const [generalComments, setGeneralComments] = useState<ProjectComment[]>([])
+  const [showGeneral, setShowGeneral] = useState(false)
 
   useEffect(() => { loadProject() }, [token])
 
@@ -52,11 +56,17 @@ export default function AdminPage() {
     }
   }, [])
 
+  async function loadGeneralComments(projectId: string) {
+    const { data } = await supabase.from('project_comments').select('*').eq('project_id', projectId).order('created_at')
+    setGeneralComments(data || [])
+  }
+
   async function loadProject() {
     const { data } = await supabase.from('projects').select('*').eq('admin_token', token).single()
     if (data) {
       setProject(data)
       loadDeliveries(data.id)
+      loadGeneralComments(data.id)
       const { data: regionData } = await supabase.from('regions').select('*').eq('name', data.region).single()
       if (regionData) setRegion(regionData)
     } else {
@@ -146,6 +156,24 @@ export default function AdminPage() {
   async function deleteComment(commentId: string) {
     await supabase.from('comments').delete().eq('id', commentId)
     setComments(comments.filter(c => c.id !== commentId))
+  }
+
+  async function saveEditComment(commentId: string) {
+    if (!editingText.trim()) return
+    await supabase.from('comments').update({ content: editingText.trim() }).eq('id', commentId)
+    setComments(comments.map(c => c.id === commentId ? { ...c, content: editingText.trim() } : c))
+    setEditingComment(null)
+  }
+
+  async function saveEditGeneralComment(commentId: string, text: string) {
+    if (!text.trim()) return
+    await supabase.from('project_comments').update({ content: text.trim() }).eq('id', commentId)
+    setGeneralComments(prev => prev.map(c => c.id === commentId ? { ...c, content: text.trim() } : c))
+  }
+
+  async function deleteGeneralComment(commentId: string) {
+    await supabase.from('project_comments').delete().eq('id', commentId)
+    setGeneralComments(prev => prev.filter(c => c.id !== commentId))
   }
 
   async function toggleResolve(commentId: string, current: boolean) {
@@ -243,6 +271,27 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-[#1e2a36] flex flex-col">
+      {/* Panel comentarios generales */}
+      {showGeneral && (
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowGeneral(false)} />
+          <div className="relative bg-[#15202b] rounded-t-2xl md:rounded-2xl w-full md:max-w-lg max-h-[80vh] flex flex-col shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-700">
+              <h3 className="font-bold text-white">Comentarios generales del cliente</h3>
+              <button onClick={() => setShowGeneral(false)} className="text-slate-400 hover:text-white">✕</button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {generalComments.length === 0 && (
+                <p className="text-slate-500 text-sm text-center py-6">Sin comentarios generales aún</p>
+              )}
+              {generalComments.map(c => (
+                <GeneralCommentCard key={c.id} c={c} onSave={saveEditGeneralComment} onDelete={deleteGeneralComment} />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Lightbox */}
       {lightbox && (
         <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4" onClick={() => setLightbox(null)}>
@@ -288,6 +337,16 @@ export default function AdminPage() {
             title="Descargar reporte CSV"
           >
             <span className="hidden sm:inline">Exportar </span>↓
+          </button>
+          <button
+            onClick={() => setShowGeneral(true)}
+            className="relative text-xs bg-slate-700 text-slate-200 px-3 py-2 rounded-lg hover:bg-slate-600 transition-colors"
+            title="Comentarios generales del cliente"
+          >
+            💬<span className="hidden sm:inline"> General</span>
+            {generalComments.length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-yellow-400 text-black text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center">{generalComments.length}</span>
+            )}
           </button>
           {region && (
             <a href={`/r/${region.client_token}`} target="_blank" className="text-xs bg-[#7ab82a] text-white px-3 py-2 rounded-lg hover:bg-[#6aa020] transition-colors font-medium">
@@ -467,6 +526,11 @@ export default function AdminPage() {
                     <span className={`font-semibold text-sm ${c.resolved ? 'text-slate-500' : 'text-[#7ab82a]'}`}>{c.author}</span>
                     <div className="flex gap-1">
                       <button
+                        onClick={() => { setEditingComment(c.id); setEditingText(c.content) }}
+                        title="Editar comentario"
+                        className="text-xs px-1.5 py-0.5 rounded-lg bg-slate-600 text-slate-300 hover:bg-slate-500 transition-colors"
+                      >✏️</button>
+                      <button
                         onClick={() => toggleResolve(c.id, c.resolved)}
                         title={c.resolved ? 'Marcar como pendiente' : 'Marcar como resuelto'}
                         className={`text-xs px-2 py-0.5 rounded-lg transition-colors ${c.resolved ? 'bg-slate-600 text-slate-400 hover:bg-slate-500' : 'bg-[#7ab82a]/20 text-[#7ab82a] hover:bg-[#7ab82a]/40'}`}
@@ -474,7 +538,21 @@ export default function AdminPage() {
                       <button onClick={() => deleteComment(c.id)} className="text-red-400 hover:text-red-300 text-xs p-0.5">✕</button>
                     </div>
                   </div>
-                  <p className={`text-sm ${c.resolved ? 'line-through text-slate-500' : 'text-slate-300'}`}>{c.content}</p>
+                  {editingComment === c.id ? (
+                    <div className="flex gap-2 mt-1">
+                      <input
+                        value={editingText}
+                        onChange={e => setEditingText(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') saveEditComment(c.id); if (e.key === 'Escape') setEditingComment(null) }}
+                        className="flex-1 bg-slate-600 text-white text-sm px-2 py-1 rounded-lg border border-slate-500 focus:outline-none focus:border-[#7ab82a]"
+                        autoFocus
+                      />
+                      <button onClick={() => saveEditComment(c.id)} className="text-xs bg-[#7ab82a] text-white px-2 rounded-lg">✓</button>
+                      <button onClick={() => setEditingComment(null)} className="text-xs text-slate-400 px-1">✕</button>
+                    </div>
+                  ) : (
+                    <p className={`text-sm ${c.resolved ? 'line-through text-slate-500' : 'text-slate-300'}`}>{c.content}</p>
+                  )}
                   <p className="text-slate-600 text-xs mt-1">{new Date(c.created_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
               ))
@@ -501,6 +579,44 @@ export default function AdminPage() {
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+function GeneralCommentCard({ c, onSave, onDelete }: {
+  c: import('@/lib/supabase').ProjectComment
+  onSave: (id: string, text: string) => void
+  onDelete: (id: string) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [text, setText] = useState(c.content)
+  return (
+    <div className="bg-slate-700 border border-slate-600 rounded-xl p-3">
+      <div className="flex justify-between items-start mb-2">
+        <span className="font-semibold text-[#7ab82a] text-sm">{c.author}</span>
+        <div className="flex gap-1">
+          <button onClick={() => setEditing(!editing)} className="text-xs px-1.5 py-0.5 rounded bg-slate-600 text-slate-300 hover:bg-slate-500">✏️</button>
+          <button onClick={() => onDelete(c.id)} className="text-red-400 hover:text-red-300 text-xs p-0.5">✕</button>
+        </div>
+      </div>
+      {editing ? (
+        <div className="flex gap-2">
+          <textarea
+            value={text}
+            onChange={e => setText(e.target.value)}
+            rows={3}
+            className="flex-1 bg-slate-600 text-white text-sm px-2 py-1 rounded-lg border border-slate-500 focus:outline-none focus:border-[#7ab82a] resize-none"
+            autoFocus
+          />
+          <div className="flex flex-col gap-1">
+            <button onClick={() => { onSave(c.id, text); setEditing(false) }} className="text-xs bg-[#7ab82a] text-white px-2 py-1 rounded-lg">✓</button>
+            <button onClick={() => setEditing(false)} className="text-xs text-slate-400 px-2 py-1">✕</button>
+          </div>
+        </div>
+      ) : (
+        <p className="text-slate-300 text-sm whitespace-pre-wrap">{c.content}</p>
+      )}
+      <p className="text-slate-600 text-xs mt-2">{new Date(c.created_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
     </div>
   )
 }
