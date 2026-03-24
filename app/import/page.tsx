@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Project, Delivery } from '@/lib/supabase'
 import Image from 'next/image'
@@ -35,18 +35,26 @@ export default function ImportPage() {
   const inputRef = useRef<HTMLInputElement>(null)
   const logRef = useRef<HTMLDivElement>(null)
 
+  // webkitdirectory no se puede pasar como prop en React — hay que setearlo en el DOM directamente
+  useEffect(() => {
+    inputRef.current?.setAttribute('webkitdirectory', '')
+  }, [])
+
   // ── Parsing helpers ────────────────────────────────────────────────────────
 
   function parsePaths(rawFiles: Array<{ file: File; path: string }>): ParsedFile[] {
     const result: ParsedFile[] = []
     for (const { file, path } of rawFiles) {
       if (!file.type.startsWith('image/')) continue
-      const parts = path.split('/')
-      // Accept:  Region/Project/Category/file.jpg  (4 parts)
-      //      or  root/Region/Project/Category/file.jpg  (5 parts)
-      const offset = parts.length === 5 ? 1 : parts.length === 4 ? 0 : -1
-      if (offset < 0) continue
-      const [region, project, category] = parts.slice(offset)
+      // Normalizar: quitar barras al inicio/fin, separar por /
+      const parts = path.replace(/^\/+/, '').split('/').filter(Boolean)
+      // Esperamos mínimo 4 partes: root/Region/Proyecto/Categoría/archivo.jpg
+      // o exactamente 3 sin root: Region/Proyecto/Categoría/archivo.jpg
+      // El último segmento siempre es el archivo
+      if (parts.length < 4) continue // necesitamos al menos root+region+project+category+file
+      // Ignorar el primer segmento (carpeta raíz) y el último (archivo)
+      // parts: [root, region, project, category, ...subcarpetas, file]
+      const [, region, project, category] = parts
       if (region && project && category) result.push({ region, project, category, file })
     }
     return result
@@ -54,13 +62,14 @@ export default function ImportPage() {
 
   async function traverseEntry(
     entry: FileSystemEntry,
-    path: string
+    currentPath: string
   ): Promise<Array<{ file: File; path: string }>> {
+    const fullPath = currentPath ? `${currentPath}/${entry.name}` : entry.name
     if (entry.isFile) {
       const file = await new Promise<File>((ok, err) =>
         (entry as FileSystemFileEntry).file(ok, err)
       )
-      return [{ file, path: `${path}/${entry.name}` }]
+      return [{ file, path: fullPath }]
     }
     const dir = entry as FileSystemDirectoryEntry
     const reader = dir.createReader()
@@ -71,7 +80,7 @@ export default function ImportPage() {
     do {
       batch = await readBatch()
       for (const child of batch) {
-        const sub = await traverseEntry(child, `${path}/${entry.name}`)
+        const sub = await traverseEntry(child, fullPath)
         allFiles.push(...sub)
       }
     } while (batch.length > 0)
@@ -132,8 +141,7 @@ export default function ImportPage() {
       const entry = item.webkitGetAsEntry()
       if (entry) {
         const sub = await traverseEntry(entry, '')
-        // Strip leading slash from path
-        raw.push(...sub.map(f => ({ ...f, path: f.path.replace(/^\//, '') })))
+        raw.push(...sub)
       }
     }
     await buildPreview(parsePaths(raw))
@@ -256,8 +264,7 @@ export default function ImportPage() {
                 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;🖼️ foto1.jpg
               </p>
             </div>
-            {/* @ts-ignore */}
-            <input ref={inputRef} type="file" webkitdirectory="" multiple className="hidden" onChange={handleInput} />
+            <input ref={inputRef} type="file" multiple className="hidden" onChange={handleInput} />
           </div>
         )}
 
