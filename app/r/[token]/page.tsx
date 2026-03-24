@@ -22,6 +22,7 @@ export default function ClientRegionPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [lightbox, setLightbox] = useState(false)
 
   useEffect(() => { loadRegion() }, [token])
 
@@ -93,6 +94,7 @@ export default function ClientRegionPage() {
 
   function selectImage(img: Img) {
     setSelectedImage(img)
+    setLightbox(false)
     loadComments(img.id)
   }
 
@@ -107,13 +109,13 @@ export default function ClientRegionPage() {
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (!selectedImage) return
-      if (e.key === 'Escape') setSelectedImage(null)
+      if (e.key === 'Escape') { if (lightbox) setLightbox(false); else setSelectedImage(null) }
       if (e.key === 'ArrowRight') navigateImage('next')
       if (e.key === 'ArrowLeft') navigateImage('prev')
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [selectedImage, images])
+  }, [selectedImage, images, lightbox])
 
   function goBack() {
     setSelectedProject(null)
@@ -141,6 +143,25 @@ export default function ClientRegionPage() {
 
   return (
     <div className="min-h-screen bg-[#1e2a36] flex flex-col">
+      {/* Lightbox fullscreen */}
+      {lightbox && selectedImage && (
+        <div
+          className="fixed inset-0 z-[60] bg-black flex items-center justify-center"
+          onClick={() => setLightbox(false)}
+        >
+          <button
+            className="absolute top-4 right-4 bg-black/60 text-white w-10 h-10 rounded-full flex items-center justify-center text-xl hover:bg-black/80"
+            onClick={() => setLightbox(false)}
+          >✕</button>
+          <img
+            src={selectedImage.url}
+            alt={selectedImage.name}
+            className="max-h-full max-w-full object-contain"
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      )}
+
       {/* Modal de imagen: izquierda imagen, derecha acciones (mobile: apilado) */}
       {selectedImage && (
         <div className="fixed inset-0 z-50 bg-[#1e2a36] flex flex-col md:flex-row overflow-hidden">
@@ -176,7 +197,8 @@ export default function ClientRegionPage() {
             <img
               src={selectedImage.url}
               alt={selectedImage.name}
-              className="max-h-full max-w-full object-contain"
+              className="max-h-full max-w-full object-contain cursor-zoom-in"
+              onClick={() => setLightbox(true)}
             />
           </div>
 

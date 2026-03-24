@@ -120,6 +120,44 @@ export default function AdminPage() {
 
   function selectImage(img: Img) { setSelectedImage(img); loadComments(img.id) }
 
+  async function exportCSV() {
+    if (!project) return
+    // Fetch all deliveries
+    const { data: allDeliveries } = await supabase.from('deliveries').select('*').eq('project_id', project.id)
+    if (!allDeliveries?.length) { alert('No hay datos para exportar'); return }
+    // Fetch all images
+    const deliveryIds = allDeliveries.map(d => d.id)
+    const { data: allImages } = await supabase.from('images').select('*').in('delivery_id', deliveryIds).order('created_at')
+    if (!allImages?.length) { alert('No hay imágenes para exportar'); return }
+    // Fetch all comments
+    const imageIds = allImages.map(i => i.id)
+    const { data: allComments } = await supabase.from('comments').select('*').in('image_id', imageIds).order('created_at')
+    // Build CSV
+    const deliveryMap = Object.fromEntries(allDeliveries.map(d => [d.id, d.name]))
+    const statusLabel = (s: string) => s === 'approved' ? 'Aprobado' : s === 'changes_requested' ? 'Cambios solicitados' : 'Pendiente'
+    const rows: string[][] = [['Proyecto', 'Categoría', 'Lámina', 'Estado', 'Comentario', 'Fecha']]
+    for (const img of allImages) {
+      const imgComments = (allComments || []).filter(c => c.image_id === img.id)
+      if (imgComments.length === 0) {
+        rows.push([project.name, deliveryMap[img.delivery_id] || '', img.name, statusLabel(img.status), '', ''])
+      } else {
+        for (const c of imgComments) {
+          const date = new Date(c.created_at).toLocaleString('es-CL')
+          rows.push([project.name, deliveryMap[img.delivery_id] || '', img.name, statusLabel(img.status), c.content, date])
+        }
+      }
+    }
+    const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\r\n')
+    const bom = '\uFEFF'
+    const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${project.name}-reporte.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const statusBorder = (s: string) => s === 'approved' ? 'border-[#7ab82a] border-4' : s === 'changes_requested' ? 'border-red-500 border-4' : 'border-slate-600 border-2'
   const statusBadge = (s: string) => s === 'approved'
     ? <span className="bg-[#7ab82a] text-white text-xs px-2 py-0.5 rounded-full font-medium">Aprobado</span>
@@ -168,6 +206,13 @@ export default function AdminPage() {
         </div>
         <div className="flex gap-2">
           <a href="/" className="text-xs bg-slate-700 text-slate-200 px-3 py-2 rounded-lg hover:bg-slate-600 transition-colors">← Inicio</a>
+          <button
+            onClick={exportCSV}
+            className="text-xs bg-slate-700 text-slate-200 px-3 py-2 rounded-lg hover:bg-slate-600 transition-colors"
+            title="Descargar reporte CSV"
+          >
+            <span className="hidden sm:inline">Exportar </span>↓
+          </button>
           {region && (
             <a href={`/r/${region.client_token}`} target="_blank" className="text-xs bg-[#7ab82a] text-white px-3 py-2 rounded-lg hover:bg-[#6aa020] transition-colors font-medium">
               <span className="hidden sm:inline">Ver cliente </span>↗
