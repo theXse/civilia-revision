@@ -259,9 +259,9 @@ export default function AdminPage() {
               <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
             </svg>
           </button>
-          <div className="bg-white rounded-lg px-2.5 py-1 md:px-3 md:py-1.5">
+          <a href="/" className="bg-white rounded-lg px-2.5 py-1 md:px-3 md:py-1.5">
             <Image src="/logo.png" alt="Civilia" width={90} height={28} className="object-contain md:!w-[110px] md:!h-[34px]" />
-          </div>
+          </a>
           <div className="hidden md:block h-8 w-px bg-slate-600" />
           <div className="hidden md:block">
             <h1 className="font-bold text-white text-lg leading-tight">{project?.name}</h1>
