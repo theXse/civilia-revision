@@ -32,6 +32,8 @@ export default function ImportPage() {
   const [totalFiles, setTotalFiles] = useState(0)
   const [progress, setProgress] = useState(0)
   const [log, setLog] = useState<string[]>([])
+  const [debugInfo, setDebugInfo] = useState<{ fromFolder: string[], fromDB: string[] } | null>(null)
+  const [showDebug, setShowDebug] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const logRef = useRef<HTMLDivElement>(null)
 
@@ -96,23 +98,33 @@ export default function ImportPage() {
     const { data: projects } = await supabase.from('projects').select('id, name, region')
     const { data: deliveries } = await supabase.from('deliveries').select('id, name, project_id')
 
-    // Normalizar NFC para comparar (macOS usa NFD en nombres de carpeta)
-    const nfc = (s: string) => s.normalize('NFC').trim()
+    // Normalizar: NFC + trim + colapsar espacios múltiples
+    const norm = (s: string) => s.normalize('NFC').trim().replace(/\s+/g, ' ')
+
+    // Debug: capturar valores de ambos lados para diagnóstico
+    const dbProjectKeys = (projects || []).map(p => `${norm(p.region)} › ${norm(p.name)}`)
 
     // Group by region+project+category
     const groups = new Map<string, ParsedFile[]>()
     for (const f of parsed) {
-      const key = `${nfc(f.region)}|||${nfc(f.project)}|||${nfc(f.category)}`
+      const key = `${norm(f.region)}|||${norm(f.project)}|||${norm(f.category)}`
       if (!groups.has(key)) groups.set(key, [])
       groups.get(key)!.push(f)
     }
 
+    const folderProjectKeys = [...new Set([...groups.keys()].map(k => {
+      const [r, p] = k.split('|||')
+      return `${r} › ${p}`
+    }))]
+
+    setDebugInfo({ fromFolder: folderProjectKeys, fromDB: dbProjectKeys })
+
     const items: PreviewItem[] = []
     for (const [key, files] of groups) {
       const [region, project, category] = key.split('|||')
-      const proj = (projects as Project[])?.find(p => nfc(p.name) === nfc(project) && nfc(p.region) === nfc(region))
+      const proj = (projects as Project[])?.find(p => norm(p.name) === norm(project) && norm(p.region) === norm(region))
       const deliv = proj
-        ? (deliveries as Delivery[])?.find(d => nfc(d.name) === nfc(category) && d.project_id === proj.id)
+        ? (deliveries as Delivery[])?.find(d => norm(d.name) === norm(category) && d.project_id === proj.id)
         : undefined
       items.push({
         region, project, category, files,
@@ -302,6 +314,27 @@ export default function ImportPage() {
                 >Importar todo →</button>
               </div>
             </div>
+
+            {/* Panel de diagnóstico */}
+            {debugInfo && (
+              <div className="mb-4">
+                <button onClick={() => setShowDebug(v => !v)} className="text-xs text-slate-500 hover:text-slate-300 underline mb-2">
+                  {showDebug ? 'Ocultar' : 'Ver'} diagnóstico de comparación
+                </button>
+                {showDebug && (
+                  <div className="bg-black rounded-xl p-4 border border-slate-700 grid grid-cols-2 gap-4 text-xs font-mono">
+                    <div>
+                      <p className="text-yellow-400 mb-2 font-bold">Leído de carpeta:</p>
+                      {debugInfo.fromFolder.map((s, i) => <p key={i} className="text-slate-300">{s}</p>)}
+                    </div>
+                    <div>
+                      <p className="text-blue-400 mb-2 font-bold">En base de datos:</p>
+                      {debugInfo.fromDB.map((s, i) => <p key={i} className="text-slate-300">{s}</p>)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="space-y-2">
               {preview.map((item, i) => (
