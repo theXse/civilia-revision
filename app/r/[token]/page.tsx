@@ -22,6 +22,7 @@ export default function ClientRegionPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [lightbox, setLightbox] = useState<Img | null>(null)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => { loadRegion() }, [token])
 
@@ -83,6 +84,7 @@ export default function ClientRegionPage() {
     setSelectedImage(null)
     setComments([])
     loadImages(d.id)
+    setSidebarOpen(false)
   }
 
   function selectImage(img: Img) {
@@ -120,43 +122,61 @@ export default function ClientRegionPage() {
       {lightbox && (
         <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4" onClick={() => setLightbox(null)}>
           <img src={lightbox.url} alt={lightbox.name} className="max-h-[90vh] max-w-[90vw] rounded-xl shadow-2xl" />
-          <button className="absolute top-4 right-6 text-white text-3xl font-bold hover:text-slate-300" onClick={() => setLightbox(null)}>✕</button>
+          <button className="absolute top-4 right-6 text-white text-3xl font-bold" onClick={() => setLightbox(null)}>✕</button>
         </div>
       )}
 
+      {/* Mobile sidebar backdrop */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+
       {/* Header */}
-      <header className="bg-[#15202b] shadow-md px-8 py-4 flex items-center gap-4">
-        <div className="bg-white rounded-lg px-3 py-1.5">
-          <Image src="/logo.png" alt="Civilia" width={110} height={34} className="object-contain" />
+      <header className="bg-[#15202b] shadow-md px-4 md:px-8 py-3 md:py-4 flex items-center gap-3">
+        {selectedProject && (
+          <button
+            className="md:hidden text-slate-300 hover:text-white p-1"
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Ver categorías"
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
+        )}
+        <div className="bg-white rounded-lg px-2.5 py-1 md:px-3 md:py-1.5">
+          <Image src="/logo.png" alt="Civilia" width={90} height={28} className="object-contain" />
         </div>
-        <div className="h-8 w-px bg-slate-600" />
+        <div className="hidden md:block h-8 w-px bg-slate-600" />
         <div className="flex-1">
-          <h1 className="font-bold text-white text-lg leading-tight">{region?.name}</h1>
-          <p className="text-slate-400 text-xs">Portal de Revisión</p>
+          <h1 className="font-bold text-white text-sm md:text-lg leading-tight">
+            {selectedProject ? selectedProject.name : region?.name}
+          </h1>
+          <p className="text-slate-400 text-xs hidden md:block">Portal de Revisión</p>
         </div>
         {selectedProject && (
           <button onClick={goBack} className="text-xs bg-slate-700 text-slate-200 px-3 py-2 rounded-lg hover:bg-slate-600 transition-colors">← Volver</button>
         )}
       </header>
 
-      {/* Estado A: Sin proyecto seleccionado */}
+      {/* Lista de proyectos */}
       {!selectedProject && (
-        <div className="flex-1 p-8">
+        <div className="flex-1 p-4 md:p-8">
           <div className="max-w-4xl mx-auto">
-            <h2 className="text-white font-semibold text-lg mb-6">Proyectos</h2>
+            <h2 className="text-white font-semibold text-base md:text-lg mb-4 md:mb-6">Proyectos</h2>
             {projects.length === 0 ? (
               <p className="text-slate-500 text-center py-16">No hay proyectos en esta región</p>
             ) : (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
                 {projects.map(p => (
                   <div key={p.id} className="bg-[#15202b] rounded-2xl overflow-hidden shadow-lg border border-slate-700">
-                    <div className="bg-[#4a6478] px-5 py-3">
+                    <div className="bg-[#4a6478] px-4 md:px-5 py-3">
                       <h3 className="text-white font-semibold text-sm">{p.name}</h3>
                     </div>
-                    <div className="px-5 py-4">
+                    <div className="px-4 md:px-5 py-4">
                       <button
                         onClick={() => selectProject(p)}
-                        className="w-full bg-[#7ab82a] hover:bg-[#6aa020] text-white text-sm py-2.5 rounded-xl font-semibold transition-colors"
+                        className="w-full bg-[#7ab82a] hover:bg-[#6aa020] text-white text-sm py-3 rounded-xl font-semibold transition-colors"
                       >
                         Ver proyecto →
                       </button>
@@ -169,52 +189,67 @@ export default function ClientRegionPage() {
         </div>
       )}
 
-      {/* Estado B y C: Proyecto seleccionado */}
+      {/* Vista de proyecto con categorías */}
       {selectedProject && (
         <div className="flex flex-1 overflow-hidden">
-          {/* Sidebar izquierdo con categorías */}
-          <div className="w-64 bg-[#15202b] border-r border-slate-700 p-4 overflow-y-auto flex flex-col gap-2">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Categorías</p>
+          {/* Sidebar de categorías */}
+          <div className={`
+            fixed top-0 left-0 h-full z-40 w-72 bg-[#15202b] border-r border-slate-700 p-4 overflow-y-auto flex flex-col gap-2 transition-transform duration-200
+            md:relative md:w-64 md:translate-x-0 md:z-auto
+            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          `}>
+            <div className="flex items-center justify-between mb-1 md:hidden">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Categorías</p>
+              <button onClick={() => setSidebarOpen(false)} className="text-slate-400 hover:text-white p-1">✕</button>
+            </div>
+            <p className="hidden md:block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Categorías</p>
             {deliveries.map(d => (
               <button
                 key={d.id}
                 onClick={() => selectDelivery(d)}
-                className={`w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${selectedDelivery?.id === d.id ? 'bg-[#4a6478] text-white' : 'hover:bg-slate-700 text-slate-300'}`}
+                className={`w-full text-left px-3 py-3 rounded-xl text-sm font-medium transition-colors ${selectedDelivery?.id === d.id ? 'bg-[#4a6478] text-white' : 'hover:bg-slate-700 text-slate-300'}`}
               >
                 {d.name}
               </button>
             ))}
           </div>
 
-          {/* Área central */}
-          <div className="flex-1 p-6 overflow-y-auto">
+          {/* Área central con imágenes */}
+          <div className="flex-1 p-4 md:p-6 overflow-y-auto">
             {selectedDelivery ? (
               <>
-                <h2 className="font-bold text-white text-lg mb-5">{selectedDelivery.name}</h2>
-                <div className="grid grid-cols-3 gap-4">
+                <h2 className="font-bold text-white text-base md:text-lg mb-4 md:mb-5">{selectedDelivery.name}</h2>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
                   {images.map(img => (
                     <div
                       key={img.id}
                       className={`rounded-2xl overflow-hidden cursor-pointer shadow-lg ${statusBorder(img.status)} ${selectedImage?.id === img.id ? 'ring-2 ring-[#7ab82a]' : ''}`}
-                      onClick={() => { selectImage(img); setLightbox(img) }}
+                      onClick={() => selectImage(img)}
                     >
-                      <img src={img.url} alt={img.name} className="w-full h-48 object-cover" />
-                      <div className="bg-[#15202b] px-3 py-2">{statusBadge(img.status)}</div>
+                      <img src={img.url} alt={img.name} className="w-full h-36 md:h-48 object-cover" />
+                      <div className="bg-[#15202b] px-2 md:px-3 py-2">{statusBadge(img.status)}</div>
                     </div>
                   ))}
                 </div>
               </>
             ) : (
-              <div className="flex items-center justify-center h-full text-slate-500">Selecciona una categoría</div>
+              <div className="flex items-center justify-center h-full text-slate-500 text-sm">
+                {deliveries.length === 0 ? 'No hay categorías en este proyecto' : 'Selecciona una categoría'}
+              </div>
             )}
           </div>
 
-          {/* Panel lateral derecho */}
+          {/* Panel de aprobación y comentarios
+              - Mobile: overlay pantalla completa
+              - Desktop: panel lateral derecho */}
           {selectedImage && (
-            <div className="w-80 bg-[#15202b] border-l border-slate-700 p-4 overflow-y-auto">
+            <div className="fixed inset-0 z-40 bg-[#15202b] overflow-y-auto p-4 md:relative md:inset-auto md:z-auto md:w-80 md:border-l md:border-slate-700">
               <div className="flex justify-between items-center mb-3">
                 <p className="text-xs text-slate-500 truncate flex-1 mr-2">{selectedImage.name}</p>
-                <button onClick={() => setSelectedImage(null)} className="text-slate-400 hover:text-white transition-colors text-lg leading-none flex-shrink-0">✕</button>
+                <button
+                  onClick={() => setSelectedImage(null)}
+                  className="text-slate-400 hover:text-white text-lg leading-none flex-shrink-0 p-1"
+                >✕</button>
               </div>
               <img
                 src={selectedImage.url}
@@ -223,8 +258,14 @@ export default function ClientRegionPage() {
                 onClick={() => setLightbox(selectedImage)}
               />
               <div className="flex gap-2 mb-4">
-                <button onClick={() => updateStatus('approved')} className="flex-1 bg-[#7ab82a] hover:bg-[#6aa020] text-white text-sm py-2.5 rounded-xl font-semibold transition-colors">✓ Aprobar</button>
-                <button onClick={() => updateStatus('changes_requested')} className="flex-1 bg-red-500 hover:bg-red-600 text-white text-sm py-2.5 rounded-xl font-semibold transition-colors">✗ Cambios</button>
+                <button
+                  onClick={() => updateStatus('approved')}
+                  className="flex-1 bg-[#7ab82a] hover:bg-[#6aa020] text-white text-sm py-3 rounded-xl font-semibold transition-colors"
+                >✓ Aprobar</button>
+                <button
+                  onClick={() => updateStatus('changes_requested')}
+                  className="flex-1 bg-red-500 hover:bg-red-600 text-white text-sm py-3 rounded-xl font-semibold transition-colors"
+                >✗ Cambios</button>
               </div>
               <h3 className="text-sm font-semibold text-slate-300 mb-3">Comentarios</h3>
               {comments.length === 0 && <p className="text-slate-500 text-sm mb-3">Sin comentarios</p>}
@@ -239,16 +280,19 @@ export default function ClientRegionPage() {
                   value={author}
                   onChange={e => setAuthor(e.target.value)}
                   placeholder="Tu nombre"
-                  className="w-full bg-slate-700 text-white text-sm px-3 py-2.5 rounded-xl border border-slate-600 focus:outline-none focus:border-[#7ab82a] placeholder-slate-400"
+                  className="w-full bg-slate-700 text-white text-sm px-3 py-3 rounded-xl border border-slate-600 focus:outline-none focus:border-[#7ab82a] placeholder-slate-400"
                 />
                 <textarea
                   value={newComment}
                   onChange={e => setNewComment(e.target.value)}
                   placeholder="Escribe un comentario..."
                   rows={3}
-                  className="w-full bg-slate-700 text-white text-sm px-3 py-2.5 rounded-xl border border-slate-600 focus:outline-none focus:border-[#7ab82a] placeholder-slate-400 resize-none"
+                  className="w-full bg-slate-700 text-white text-sm px-3 py-3 rounded-xl border border-slate-600 focus:outline-none focus:border-[#7ab82a] placeholder-slate-400 resize-none"
                 />
-                <button onClick={addComment} className="w-full bg-[#4a6478] text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-[#3a5060] transition-colors">Comentar</button>
+                <button
+                  onClick={addComment}
+                  className="w-full bg-[#4a6478] text-white py-3 rounded-xl text-sm font-semibold hover:bg-[#3a5060] transition-colors"
+                >Comentar</button>
               </div>
             </div>
           )}
