@@ -69,10 +69,11 @@ export default function AdminPage() {
     const { data } = await supabase.from('projects').select('*').eq('admin_token', token).single()
     if (data) {
       setProject(data)
-      loadDeliveries(data.id)
-      loadGeneralComments(data.id)
-      const { data: regionData } = await supabase.from('regions').select('*').eq('name', data.region).single()
-      if (regionData) setRegion(regionData)
+      await Promise.all([
+        loadDeliveries(data.id),
+        loadGeneralComments(data.id),
+        supabase.from('regions').select('*').eq('name', data.region).single().then(({ data: r }) => { if (r) setRegion(r) }),
+      ])
     } else {
       setError('Proyecto no encontrado')
     }

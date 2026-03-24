@@ -28,29 +28,27 @@ export default function Home() {
   }, [])
 
   async function loadActivity() {
-    const { data: deliveries } = await supabase.from('deliveries').select('id, project_id')
+    const [{ data: deliveries }, { data: images }, { data: comments }] = await Promise.all([
+      supabase.from('deliveries').select('id, project_id'),
+      supabase.from('images').select('id, delivery_id, status'),
+      supabase.from('comments').select('image_id'),
+    ])
     if (!deliveries?.length) return
     const deliveryToProject: Record<string, string> = {}
     for (const d of deliveries) deliveryToProject[d.id] = d.project_id
-
-    const { data: images } = await supabase.from('images').select('id, delivery_id, status')
-    if (!images?.length) return
     const imageToProject: Record<string, string> = {}
     const changesPerProject: Record<string, number> = {}
-    for (const img of images) {
+    for (const img of (images || [])) {
       const pId = deliveryToProject[img.delivery_id]
       if (!pId) continue
       imageToProject[img.id] = pId
       if (img.status === 'changes_requested') changesPerProject[pId] = (changesPerProject[pId] || 0) + 1
     }
-
-    const { data: comments } = await supabase.from('comments').select('image_id')
     const commentsPerProject: Record<string, number> = {}
     for (const c of (comments || [])) {
       const pId = imageToProject[c.image_id]
       if (pId) commentsPerProject[pId] = (commentsPerProject[pId] || 0) + 1
     }
-
     const result: Record<string, { comments: number; changes: number }> = {}
     const allProjectIds = new Set([...Object.keys(commentsPerProject), ...Object.keys(changesPerProject)])
     for (const pId of allProjectIds) {
