@@ -137,33 +137,7 @@ export default function Home() {
                 <div className="p-3 md:p-4 space-y-2">
                   {regionProjects.map(p => {
                     const act = activity[p.id]
-                    return (
-                      <div key={p.id} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl px-3 md:px-4 py-3 group">
-                        <div className="flex items-center gap-2 flex-1 min-w-0 mr-2">
-                          <span className="font-medium text-slate-700 text-sm truncate">{p.name}</span>
-                          {act?.changes > 0 && (
-                            <span className="flex-shrink-0 flex items-center gap-1 bg-red-100 text-red-600 text-xs font-semibold px-2 py-0.5 rounded-full">
-                              <span className="w-1.5 h-1.5 bg-red-500 rounded-full inline-block" />
-                              {act.changes} cambios
-                            </span>
-                          )}
-                          {act?.comments > 0 && act?.changes === 0 && (
-                            <span className="flex-shrink-0 flex items-center gap-1 bg-yellow-100 text-yellow-700 text-xs font-semibold px-2 py-0.5 rounded-full">
-                              💬 {act.comments}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex gap-1 items-center flex-shrink-0">
-                          <a href={`/a/${p.admin_token}`} target="_blank" className="text-xs bg-[#4a6478] text-white px-2.5 py-1.5 rounded-lg font-medium hover:bg-[#3a5060] transition-colors">Admin</a>
-                          <button
-                            onClick={() => archiveProject(p)}
-                            title="Archivar proyecto"
-                            className="text-xs text-slate-400 hover:text-[#4a6478] font-medium opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-1.5"
-                          >📦</button>
-                          <button onClick={() => deleteProject(p.id)} className="text-xs text-red-400 hover:text-red-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity px-1 py-1.5">✕</button>
-                        </div>
-                      </div>
-                    )
+                    return <ProjectCard key={p.id} p={p} act={act} onArchive={archiveProject} onDelete={deleteProject} />
                   })}
                   {regionProjects.length === 0 && (
                     <p className="text-slate-400 text-sm text-center py-2">Sin proyectos activos</p>
@@ -240,6 +214,71 @@ export default function Home() {
         </div>
 
       </div>
+    </div>
+  )
+}
+
+function ProjectCard({ p, act, onArchive, onDelete }: {
+  p: Project
+  act?: { comments: number; changes: number }
+  onArchive: (p: Project) => void
+  onDelete: (id: string) => void
+}) {
+  const [showNotes, setShowNotes] = useState(false)
+  const [notes, setNotes] = useState(p.notes || '')
+  const [saving, setSaving] = useState(false)
+
+  async function saveNotes() {
+    setSaving(true)
+    await supabase.from('projects').update({ notes }).eq('id', p.id)
+    setSaving(false)
+  }
+
+  return (
+    <div className="bg-slate-50 border border-slate-200 rounded-xl group">
+      <div className="flex items-center justify-between px-3 md:px-4 py-3">
+        <div className="flex items-center gap-2 flex-1 min-w-0 mr-2">
+          <span className="font-medium text-slate-700 text-sm truncate">{p.name}</span>
+          {(act?.changes ?? 0) > 0 && (
+            <span className="flex-shrink-0 flex items-center gap-1 bg-red-100 text-red-600 text-xs font-semibold px-2 py-0.5 rounded-full">
+              <span className="w-1.5 h-1.5 bg-red-500 rounded-full inline-block" />
+              {act!.changes} cambios
+            </span>
+          )}
+          {(act?.comments ?? 0) > 0 && (act?.changes ?? 0) === 0 && (
+            <span className="flex-shrink-0 flex items-center gap-1 bg-yellow-100 text-yellow-700 text-xs font-semibold px-2 py-0.5 rounded-full">
+              💬 {act!.comments}
+            </span>
+          )}
+        </div>
+        <div className="flex gap-1 items-center flex-shrink-0">
+          <button
+            onClick={() => setShowNotes(!showNotes)}
+            title="Nota para diseñadora"
+            className={`text-xs px-2 py-1.5 rounded-lg transition-colors ${notes ? 'text-amber-600 bg-amber-50 hover:bg-amber-100' : 'text-slate-400 hover:text-amber-600 opacity-0 group-hover:opacity-100'}`}
+          >📝</button>
+          <a href={`/a/${p.admin_token}`} target="_blank" className="text-xs bg-[#4a6478] text-white px-2.5 py-1.5 rounded-lg font-medium hover:bg-[#3a5060] transition-colors">Admin</a>
+          <button onClick={() => onArchive(p)} title="Archivar" className="text-xs text-slate-400 hover:text-[#4a6478] opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-1.5">📦</button>
+          <button onClick={() => onDelete(p.id)} className="text-xs text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity px-1 py-1.5">✕</button>
+        </div>
+      </div>
+      {showNotes && (
+        <div className="px-3 md:px-4 pb-3 border-t border-slate-200 pt-2">
+          <p className="text-xs text-slate-500 mb-1.5 font-medium">📝 Nota para diseñadora</p>
+          <textarea
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            onBlur={saveNotes}
+            placeholder="Ej: Usar tipografía nueva, logo versión horizontal, colores campaña verano..."
+            rows={3}
+            className="w-full bg-amber-50 border border-amber-200 text-slate-700 text-sm px-3 py-2 rounded-lg focus:outline-none focus:border-amber-400 placeholder-slate-400 resize-none"
+          />
+          <div className="flex justify-between items-center mt-1">
+            <span className="text-xs text-slate-400">{saving ? 'Guardando...' : 'Se guarda automáticamente'}</span>
+            <button onClick={saveNotes} className="text-xs bg-amber-500 hover:bg-amber-400 text-white px-3 py-1 rounded-lg transition-colors">Guardar</button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -19,6 +19,7 @@ export type Project = {
   admin_token: string
   archived: boolean
   archived_at: string | null
+  notes: string
   created_at: string
 }
 
