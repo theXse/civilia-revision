@@ -49,6 +49,14 @@ export default function AdminPage() {
     if (data) { setDeliveries([data, ...deliveries]); setNewDelivery('') }
   }
 
+  async function deleteDelivery(deliveryId: string) {
+    if (!window.confirm('¿Eliminar esta entrega y todas sus imágenes?')) return
+    await supabase.from('images').delete().eq('delivery_id', deliveryId)
+    await supabase.from('deliveries').delete().eq('id', deliveryId)
+    setDeliveries(deliveries.filter(d => d.id !== deliveryId))
+    if (selectedDelivery?.id === deliveryId) { setSelectedDelivery(null); setImages([]) }
+  }
+
   async function uploadImages(files: FileList) {
     if (!selectedDelivery) return
     setUploading(true)
@@ -119,11 +127,31 @@ export default function AdminPage() {
         <div className="w-64 bg-[#15202b] border-r border-slate-700 p-4 overflow-y-auto flex flex-col gap-2">
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Entregas</p>
           <div className="flex gap-2">
-            <input value={newDelivery} onChange={e => setNewDelivery(e.target.value)} onKeyDown={e => e.key === 'Enter' && createDelivery()} placeholder="Nueva entrega..." className="flex-1 bg-slate-700 text-white text-sm px-3 py-2 rounded-lg border border-slate-600 focus:outline-none focus:border-[#7ab82a] placeholder-slate-400" />
-            <button onClick={createDelivery} className="bg-[#7ab82a] text-white px-3 py-2 rounded-lg text-sm font-bold hover:bg-[#6aa020] transition-colors">+</button>
+            <input
+              value={newDelivery}
+              onChange={e => setNewDelivery(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && createDelivery()}
+              placeholder="Nueva entrega..."
+              className="flex-1 bg-slate-700 text-white text-sm px-3 py-2 rounded-lg border border-slate-600 focus:outline-none focus:border-[#7ab82a] placeholder-slate-400"
+            />
+            <button
+              onClick={createDelivery}
+              disabled={!newDelivery.trim()}
+              className="bg-[#7ab82a] text-white px-3 py-2 rounded-lg text-sm font-bold hover:bg-[#6aa020] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >+</button>
           </div>
           {deliveries.map(d => (
-            <button key={d.id} onClick={() => selectDelivery(d)} className={`w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${selectedDelivery?.id === d.id ? 'bg-[#4a6478] text-white' : 'hover:bg-slate-700 text-slate-300'}`}>{d.name}</button>
+            <div key={d.id} className={`flex items-center rounded-xl transition-colors ${selectedDelivery?.id === d.id ? 'bg-[#4a6478]' : 'hover:bg-slate-700'}`}>
+              <button
+                onClick={() => selectDelivery(d)}
+                className={`flex-1 text-left px-3 py-2.5 text-sm font-medium truncate ${selectedDelivery?.id === d.id ? 'text-white' : 'text-slate-300'}`}
+              >{d.name}</button>
+              <button
+                onClick={e => { e.stopPropagation(); deleteDelivery(d.id) }}
+                className="px-2 py-2 text-slate-500 hover:text-red-400 transition-colors text-xs flex-shrink-0"
+                title="Eliminar entrega"
+              >✕</button>
+            </div>
           ))}
         </div>
 
