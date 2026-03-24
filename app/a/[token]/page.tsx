@@ -131,6 +131,18 @@ export default function AdminPage() {
     if (selectedImage?.id === imageId) setSelectedImage(null)
   }
 
+  async function replaceImage(imageId: string, file: File) {
+    const resized = await resizeForUpload(file)
+    const path = `${selectedDelivery!.id}/${Date.now()}-${resized.name}`
+    const { error: uploadError } = await supabase.storage.from('images').upload(path, resized)
+    if (uploadError) return
+    const { data: urlData } = supabase.storage.from('images').getPublicUrl(path)
+    await supabase.from('images').update({ url: urlData.publicUrl }).eq('id', imageId)
+    const updated = images.map(i => i.id === imageId ? { ...i, url: urlData.publicUrl } : i)
+    setImages(updated)
+    if (selectedImage?.id === imageId) setSelectedImage({ ...selectedImage, url: urlData.publicUrl })
+  }
+
   async function deleteComment(commentId: string) {
     await supabase.from('comments').delete().eq('id', commentId)
     setComments(comments.filter(c => c.id !== commentId))
@@ -359,10 +371,14 @@ export default function AdminPage() {
                     <div className="absolute bottom-0 left-0 right-0 bg-[#15202b]/95 px-2 md:px-3 py-2 flex justify-between items-center">
                       {statusBadge(img.status)}
                       <span className="text-slate-400 text-xs font-medium">Lámina {idx + 1}</span>
-                      <button
-                        onClick={e => { e.stopPropagation(); deleteImage(img.id) }}
-                        className="text-red-400 hover:text-red-300 text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity"
-                      >✕</button>
+                      <label
+                        onClick={e => e.stopPropagation()}
+                        className="text-blue-400 hover:text-blue-300 text-xs font-medium cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Reemplazar imagen"
+                      >
+                        ↑ Reemplazar
+                        <input type="file" accept="image/*" className="hidden" onChange={e => { if (e.target.files?.[0]) replaceImage(img.id, e.target.files[0]) }} />
+                      </label>
                     </div>
                   </div>
                 ))}
@@ -388,10 +404,20 @@ export default function AdminPage() {
               className="w-full rounded-xl mb-3 cursor-zoom-in"
               onClick={() => setLightbox(selectedImage)}
             />
-            <button
-              onClick={() => setLightbox(selectedImage)}
-              className="w-full text-xs bg-slate-700 text-slate-300 py-2 rounded-xl mb-4 hover:bg-slate-600 transition-colors"
-            >🔍 Ver imagen completa</button>
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setLightbox(selectedImage)}
+                className="flex-1 text-xs bg-slate-700 text-slate-300 py-2 rounded-xl hover:bg-slate-600 transition-colors"
+              >🔍 Ver completa</button>
+              <label className="flex-1 text-xs bg-blue-600 text-white py-2 rounded-xl hover:bg-blue-500 transition-colors cursor-pointer text-center font-medium">
+                ↑ Reemplazar
+                <input type="file" accept="image/*" className="hidden" onChange={e => { if (e.target.files?.[0]) replaceImage(selectedImage.id, e.target.files[0]) }} />
+              </label>
+              <button
+                onClick={() => deleteImage(selectedImage.id)}
+                className="text-xs bg-red-900/40 text-red-400 px-3 py-2 rounded-xl hover:bg-red-900/60 transition-colors"
+              >✕</button>
+            </div>
 
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-slate-300">Comentarios del cliente</h3>
