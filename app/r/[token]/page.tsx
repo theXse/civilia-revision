@@ -96,6 +96,25 @@ export default function ClientRegionPage() {
     loadComments(img.id)
   }
 
+  function navigateImage(dir: 'prev' | 'next') {
+    if (!selectedImage) return
+    const idx = images.findIndex(i => i.id === selectedImage.id)
+    const newIdx = dir === 'next' ? idx + 1 : idx - 1
+    if (newIdx >= 0 && newIdx < images.length) selectImage(images[newIdx])
+  }
+
+  // Keyboard: Escape cierra, flechas navegan
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (!selectedImage) return
+      if (e.key === 'Escape') setSelectedImage(null)
+      if (e.key === 'ArrowRight') navigateImage('next')
+      if (e.key === 'ArrowLeft') navigateImage('prev')
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [selectedImage, images])
+
   function goBack() {
     setSelectedProject(null)
     setSelectedDelivery(null)
@@ -125,12 +144,35 @@ export default function ClientRegionPage() {
       {/* Modal de imagen: izquierda imagen, derecha acciones (mobile: apilado) */}
       {selectedImage && (
         <div className="fixed inset-0 z-50 bg-[#1e2a36] flex flex-col md:flex-row overflow-hidden">
-          {/* Lado izquierdo: imagen grande */}
-          <div className="flex-1 bg-black flex items-center justify-center min-h-0 relative">
+          {/* Lado izquierdo: imagen grande con flechas */}
+          <div className="flex-1 bg-black flex items-center justify-center min-h-0 relative select-none">
+            {/* Cerrar */}
             <button
               onClick={() => setSelectedImage(null)}
               className="absolute top-4 right-4 z-10 bg-black/60 text-white w-9 h-9 rounded-full flex items-center justify-center text-lg hover:bg-black/80 transition-colors"
             >✕</button>
+
+            {/* Contador */}
+            <div className="absolute top-4 left-4 z-10 bg-black/60 text-white text-xs px-3 py-1.5 rounded-full">
+              {images.findIndex(i => i.id === selectedImage.id) + 1} / {images.length}
+            </div>
+
+            {/* Flecha izquierda */}
+            {images.findIndex(i => i.id === selectedImage.id) > 0 && (
+              <button
+                onClick={() => navigateImage('prev')}
+                className="absolute left-3 top-1/2 -translate-y-1/2 z-10 bg-black/50 hover:bg-black/70 text-white w-10 h-10 rounded-full flex items-center justify-center text-xl transition-colors"
+              >‹</button>
+            )}
+
+            {/* Flecha derecha */}
+            {images.findIndex(i => i.id === selectedImage.id) < images.length - 1 && (
+              <button
+                onClick={() => navigateImage('next')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 z-10 bg-black/50 hover:bg-black/70 text-white w-10 h-10 rounded-full flex items-center justify-center text-xl transition-colors"
+              >›</button>
+            )}
+
             <img
               src={selectedImage.url}
               alt={selectedImage.name}
