@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import type { Project, Delivery, Image as Img, Comment } from '@/lib/supabase'
+import type { Project, Delivery, Image as Img, Comment, Region } from '@/lib/supabase'
 import Image from 'next/image'
 
 export default function AdminPage() {
@@ -19,12 +19,20 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [lightbox, setLightbox] = useState<Img | null>(null)
+  const [region, setRegion] = useState<Region | null>(null)
 
   useEffect(() => { loadProject() }, [token])
 
   async function loadProject() {
     const { data } = await supabase.from('projects').select('*').eq('admin_token', token).single()
-    if (data) { setProject(data); loadDeliveries(data.id) } else { setError('Proyecto no encontrado') }
+    if (data) {
+      setProject(data)
+      loadDeliveries(data.id)
+      const { data: regionData } = await supabase.from('regions').select('*').eq('name', data.region).single()
+      if (regionData) setRegion(regionData)
+    } else {
+      setError('Proyecto no encontrado')
+    }
     setLoading(false)
   }
 
@@ -45,7 +53,8 @@ export default function AdminPage() {
 
   async function createDelivery() {
     if (!newDelivery.trim() || !project) return
-    const { data } = await supabase.from('deliveries').insert({ project_id: project.id, name: newDelivery }).select().single()
+    const { data, error: insertError } = await supabase.from('deliveries').insert({ project_id: project.id, name: newDelivery }).select().single()
+    if (insertError) { alert('Error al crear categoría: ' + insertError.message); return }
     if (data) { setDeliveries([data, ...deliveries]); setNewDelivery('') }
   }
 
@@ -119,7 +128,7 @@ export default function AdminPage() {
         </div>
         <div className="flex gap-3">
           <a href="/" className="text-xs bg-slate-700 text-slate-200 px-3 py-2 rounded-lg hover:bg-slate-600 transition-colors">← Inicio</a>
-          <a href={`/r/${project?.client_token}`} target="_blank" className="text-xs bg-[#7ab82a] text-white px-3 py-2 rounded-lg hover:bg-[#6aa020] transition-colors font-medium">Ver link cliente ↗</a>
+          {region && <a href={`/r/${region.client_token}`} target="_blank" className="text-xs bg-[#7ab82a] text-white px-3 py-2 rounded-lg hover:bg-[#6aa020] transition-colors font-medium">Ver link cliente ↗</a>}
         </div>
       </header>
 
