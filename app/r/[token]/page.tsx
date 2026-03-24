@@ -103,7 +103,7 @@ export default function ClientPage() {
               <h2 className="font-bold text-white text-lg mb-5">{selectedDelivery.name}</h2>
               <div className="grid grid-cols-3 gap-4">
                 {images.map(img => (
-                  <div key={img.id} className={`rounded-2xl overflow-hidden cursor-pointer shadow-lg ${statusBorder(img.status)} ${selectedImage?.id === img.id ? 'ring-2 ring-[#7ab82a]' : ''}`} onClick={() => selectImage(img)}>
+                  <div key={img.id} className={`rounded-2xl overflow-hidden cursor-pointer shadow-lg ${statusBorder(img.status)} ${selectedImage?.id === img.id ? 'ring-2 ring-[#7ab82a]' : ''}`} onClick={() => { selectImage(img); setLightbox(img) }}>
                     <img src={img.url} alt={img.name} className="w-full h-48 object-cover" />
                     <div className="bg-[#15202b] px-3 py-2">{statusBadge(img.status)}</div>
                   </div>
@@ -117,6 +117,10 @@ export default function ClientPage() {
 
         {selectedImage && (
           <div className="w-80 bg-[#15202b] border-l border-slate-700 p-4 overflow-y-auto">
+            <div className="flex justify-between items-center mb-3">
+              <p className="text-xs text-slate-500 truncate flex-1 mr-2">{selectedImage.name}</p>
+              <button onClick={() => setSelectedImage(null)} className="text-slate-400 hover:text-white transition-colors text-lg leading-none flex-shrink-0">✕</button>
+            </div>
             <img src={selectedImage.url} alt={selectedImage.name} className="w-full rounded-xl mb-3 cursor-zoom-in" onClick={() => setLightbox(selectedImage)} />
             <div className="flex gap-2 mb-4">
               <button onClick={() => updateStatus('approved')} className="flex-1 bg-[#7ab82a] hover:bg-[#6aa020] text-white text-sm py-2.5 rounded-xl font-semibold transition-colors">✓ Aprobar</button>
