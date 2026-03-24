@@ -191,7 +191,7 @@ export default function ClientRegionPage() {
             onClick={() => setLightbox(false)}
           >✕</button>
           <img
-            src={selectedImage.url}
+            src={thumbUrl(selectedImage.url, 'full')}
             alt={selectedImage.name}
             className="max-h-full max-w-full object-contain"
             onClick={e => e.stopPropagation()}
@@ -232,7 +232,7 @@ export default function ClientRegionPage() {
             )}
 
             <img
-              src={selectedImage.url}
+              src={thumbUrl(selectedImage.url, 'full')}
               alt={selectedImage.name}
               className="max-h-full max-w-full object-contain cursor-zoom-in"
               onClick={() => setLightbox(true)}
@@ -412,7 +412,7 @@ export default function ClientRegionPage() {
                     >
                       <div className="relative h-36 md:h-48 bg-slate-700">
                         <img
-                          src={thumbUrl(img.url)}
+                          src={thumbUrl(img.url, 'grid')}
                           alt={img.name}
                           loading="lazy"
                           decoding="async"

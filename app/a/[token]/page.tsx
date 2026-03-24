@@ -214,7 +214,7 @@ export default function AdminPage() {
       {/* Lightbox */}
       {lightbox && (
         <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4" onClick={() => setLightbox(null)}>
-          <img src={lightbox.url} alt={lightbox.name} className="max-h-[90vh] max-w-[90vw] rounded-xl shadow-2xl" />
+          <img src={thumbUrl(lightbox.url, 'full')} alt={lightbox.name} className="max-h-[90vh] max-w-[90vw] rounded-xl shadow-2xl" />
           <button className="absolute top-4 right-6 text-white text-3xl font-bold" onClick={() => setLightbox(null)}>✕</button>
         </div>
       )}
@@ -344,7 +344,7 @@ export default function AdminPage() {
                   >
                     <div className="relative h-36 md:h-48 bg-slate-700">
                       <img
-                        src={thumbUrl(img.url)}
+                        src={thumbUrl(img.url, 'grid')}
                         alt={img.name}
                         loading="lazy"
                         decoding="async"
@@ -382,7 +382,7 @@ export default function AdminPage() {
               <button onClick={() => setSelectedImage(null)} className="text-slate-400 hover:text-white p-1 flex-shrink-0">✕</button>
             </div>
             <img
-              src={thumbUrl(selectedImage.url)}
+              src={thumbUrl(selectedImage.url, 'panel')}
               alt={selectedImage.name}
               className="w-full rounded-xl mb-3 cursor-zoom-in"
               onClick={() => setLightbox(selectedImage)}
