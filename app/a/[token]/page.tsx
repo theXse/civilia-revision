@@ -161,6 +161,14 @@ export default function AdminPage() {
     setImages(images.map(i => i.id === selectedImage.id ? updated : i))
   }
 
+  async function resetStatus() {
+    if (!selectedImage) return
+    await supabase.from('images').update({ status: 'pending' }).eq('id', selectedImage.id)
+    const updated = { ...selectedImage, status: 'pending' as const }
+    setSelectedImage(updated)
+    setImages(images.map(i => i.id === selectedImage.id ? updated : i))
+  }
+
   function selectDelivery(d: Delivery) {
     setSelectedDelivery(d)
     setSelectedImage(null)
@@ -404,6 +412,12 @@ export default function AdminPage() {
               className="w-full rounded-xl mb-3 cursor-zoom-in"
               onClick={() => setLightbox(selectedImage)}
             />
+            {selectedImage.status !== 'pending' && (
+              <button
+                onClick={resetStatus}
+                className="w-full text-xs text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 py-2 rounded-xl mb-2 transition-colors"
+              >↺ Volver a neutro</button>
+            )}
             <div className="flex gap-2 mb-4">
               <button
                 onClick={() => setLightbox(selectedImage)}
