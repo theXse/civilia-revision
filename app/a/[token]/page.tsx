@@ -26,6 +26,32 @@ export default function AdminPage() {
 
   useEffect(() => { loadProject() }, [token])
 
+  // Realtime: refleja aprobaciones/cambios del cliente en tiempo real
+  useEffect(() => {
+    const imgChannel = supabase
+      .channel('admin-realtime-images')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'images' }, payload => {
+        const updated = payload.new as Img
+        setImages(prev => prev.map(i => i.id === updated.id ? updated : i))
+        setSelectedImage(prev => prev?.id === updated.id ? updated : prev)
+      })
+      .subscribe()
+
+    const cmtChannel = supabase
+      .channel('admin-realtime-comments')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments' }, payload => {
+        const c = payload.new as Comment
+        setComments(prev => prev.some(x => x.id === c.id) ? prev : [...prev, c])
+        setCommentCounts(prev => ({ ...prev, [c.image_id]: (prev[c.image_id] || 0) + 1 }))
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(imgChannel)
+      supabase.removeChannel(cmtChannel)
+    }
+  }, [])
+
   async function loadProject() {
     const { data } = await supabase.from('projects').select('*').eq('admin_token', token).single()
     if (data) {
