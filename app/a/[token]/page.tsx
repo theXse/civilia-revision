@@ -26,6 +26,8 @@ export default function AdminPage() {
   const [editingComment, setEditingComment] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState<string | null>(null)
   const dragItem = useRef<string | null>(null)
+  const [dragOverDelivery, setDragOverDelivery] = useState<string | null>(null)
+  const dragDelivery = useRef<string | null>(null)
   const [editingText, setEditingText] = useState('')
   const [generalComments, setGeneralComments] = useState<ProjectComment[]>([])
   const [showGeneral, setShowGeneral] = useState(false)
@@ -78,7 +80,7 @@ export default function AdminPage() {
   }
 
   async function loadDeliveries(projectId: string) {
-    const { data } = await supabase.from('deliveries').select('*').eq('project_id', projectId).order('created_at', { ascending: false })
+    const { data } = await supabase.from('deliveries').select('*').eq('project_id', projectId).order('sort_order').order('created_at', { ascending: false })
     const list = data || []
     setDeliveries(list)
     if (list.length > 0) {
@@ -98,6 +100,21 @@ export default function AdminPage() {
       for (const c of (cData || [])) counts[c.image_id] = (counts[c.image_id] || 0) + 1
       setCommentCounts(counts)
     }
+  }
+
+  async function handleDropDelivery(targetId: string) {
+    const fromId = dragDelivery.current
+    if (!fromId || fromId === targetId) { setDragOverDelivery(null); return }
+    const from = deliveries.findIndex(d => d.id === fromId)
+    const to = deliveries.findIndex(d => d.id === targetId)
+    const reordered = [...deliveries]
+    const [moved] = reordered.splice(from, 1)
+    reordered.splice(to, 0, moved)
+    const updated = reordered.map((d, idx) => ({ ...d, sort_order: idx }))
+    setDeliveries(updated)
+    setDragOverDelivery(null)
+    dragDelivery.current = null
+    await Promise.all(updated.map(d => supabase.from('deliveries').update({ sort_order: d.sort_order }).eq('id', d.id)))
   }
 
   async function handleDrop(targetId: string) {
@@ -412,10 +429,20 @@ export default function AdminPage() {
               .reduce((sum, img) => sum + (commentCounts[img.id] || 0), 0)
             const hasChanges = images.filter(img => img.delivery_id === d.id && img.status === 'changes_requested').length
             return (
-              <div key={d.id} className={`flex items-center rounded-xl transition-colors ${selectedDelivery?.id === d.id ? 'bg-[#4a6478]' : 'hover:bg-slate-700'}`}>
+              <div
+                key={d.id}
+                draggable
+                onDragStart={() => { dragDelivery.current = d.id }}
+                onDragOver={e => { e.preventDefault(); setDragOverDelivery(d.id) }}
+                onDragLeave={() => setDragOverDelivery(null)}
+                onDrop={() => handleDropDelivery(d.id)}
+                onDragEnd={() => { setDragOverDelivery(null); dragDelivery.current = null }}
+                className={`flex items-center rounded-xl transition-all ${selectedDelivery?.id === d.id ? 'bg-[#4a6478]' : 'hover:bg-slate-700'} ${dragOverDelivery === d.id ? 'ring-2 ring-blue-400 scale-[1.02]' : ''}`}
+              >
+                <span className="pl-2 text-slate-500 cursor-grab active:cursor-grabbing text-xs select-none">⠿</span>
                 <button
                   onClick={() => selectDelivery(d)}
-                  className={`flex-1 text-left px-3 py-3 text-sm font-medium truncate ${selectedDelivery?.id === d.id ? 'text-white' : 'text-slate-300'}`}
+                  className={`flex-1 text-left px-2 py-3 text-sm font-medium truncate ${selectedDelivery?.id === d.id ? 'text-white' : 'text-slate-300'}`}
                 >{d.name}</button>
                 <div className="flex items-center gap-1 pr-1">
                   {deliveryComments > 0 && (
