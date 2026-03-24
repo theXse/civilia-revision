@@ -222,7 +222,7 @@ function ProjectCard({ p, act, onArchive, onDelete }: {
   onArchive: (p: Project) => void
   onDelete: (id: string) => void
 }) {
-  const [showNotes, setShowNotes] = useState(false)
+  const [showNotes, setShowNotes] = useState(!!(p.notes?.trim()))
   const [notes, setNotes] = useState(p.notes || '')
   const [saving, setSaving] = useState(false)
   const [ready, setReady] = useState(p.ready_for_social || false)
@@ -265,8 +265,8 @@ function ProjectCard({ p, act, onArchive, onDelete }: {
           <button
             onClick={() => setShowNotes(!showNotes)}
             title="Nota para diseñadora"
-            className={`text-xs px-2 py-1.5 rounded-lg transition-colors ${notes ? 'text-amber-600 bg-amber-50 hover:bg-amber-100' : 'text-slate-400 hover:text-amber-600 opacity-0 group-hover:opacity-100'}`}
-          >📝</button>
+            className={`text-xs px-2 py-1.5 rounded-lg transition-colors font-semibold ${notes?.trim() ? 'text-amber-700 bg-amber-100 border border-amber-300 hover:bg-amber-200' : 'text-slate-400 hover:text-amber-600 opacity-0 group-hover:opacity-100'}`}
+          >{notes?.trim() ? '📝 Nota' : '📝'}</button>
           <a href={`/a/${p.admin_token}`} target="_blank" className="text-xs bg-[#4a6478] text-white px-2.5 py-1.5 rounded-lg font-medium hover:bg-[#3a5060] transition-colors">Admin</a>
           <button onClick={() => onArchive(p)} title="Archivar" className="text-xs text-slate-400 hover:text-[#4a6478] opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-1.5">📦</button>
           <button onClick={() => onDelete(p.id)} className="text-xs text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity px-1 py-1.5">✕</button>
