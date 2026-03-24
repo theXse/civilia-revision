@@ -12,6 +12,8 @@ export default function Home() {
   const [regions, setRegions] = useState<Region[]>([])
   const [activity, setActivity] = useState<Record<string, { comments: number; changes: number }>>({})
   const [loading, setLoading] = useState(true)
+  const [newProjectName, setNewProjectName] = useState<Record<string, string>>({})
+  const [creating, setCreating] = useState<string | null>(null)
 
   useEffect(() => {
     Promise.all([
@@ -60,6 +62,19 @@ export default function Home() {
     if (!window.confirm('¿Eliminar este proyecto?')) return
     await supabase.from('projects').delete().eq('id', id)
     setProjects(prev => prev.filter(p => p.id !== id))
+  }
+
+  async function createProject(region: string) {
+    const name = newProjectName[region]?.trim()
+    if (!name) return
+    setCreating(region)
+    const adminToken = crypto.randomUUID()
+    const { data } = await supabase.from('projects').insert({ name, region, admin_token: adminToken }).select().single()
+    if (data) {
+      setProjects(prev => [...prev, data])
+      setNewProjectName(prev => ({ ...prev, [region]: '' }))
+    }
+    setCreating(null)
   }
 
   function getRegionToken(regionName: string) {
@@ -117,8 +132,22 @@ export default function Home() {
                     )
                   })}
                   {projects.filter(p => p.region === region).length === 0 && (
-                    <p className="text-slate-400 text-sm text-center py-4">Sin proyectos</p>
+                    <p className="text-slate-400 text-sm text-center py-2">Sin proyectos</p>
                   )}
+                  <div className="flex gap-2 mt-2">
+                    <input
+                      value={newProjectName[region] || ''}
+                      onChange={e => setNewProjectName(prev => ({ ...prev, [region]: e.target.value }))}
+                      onKeyDown={e => e.key === 'Enter' && createProject(region)}
+                      placeholder="Nuevo proyecto..."
+                      className="flex-1 bg-slate-100 border border-slate-200 text-slate-700 text-sm px-3 py-2 rounded-lg focus:outline-none focus:border-[#4a6478] placeholder-slate-400"
+                    />
+                    <button
+                      onClick={() => createProject(region)}
+                      disabled={!newProjectName[region]?.trim() || creating === region}
+                      className="bg-[#4a6478] text-white px-3 py-2 rounded-lg text-lg font-bold hover:bg-[#3a5060] transition-colors disabled:opacity-40"
+                    >{creating === region ? '…' : '+'}</button>
+                  </div>
                 </div>
               </div>
             )
