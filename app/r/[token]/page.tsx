@@ -27,7 +27,7 @@ export default function ClientRegionPage() {
 
   useEffect(() => { loadRegion() }, [token])
 
-  // Realtime: actualiza imágenes y comentarios cuando el admin hace cambios
+  // Realtime + polling cada 8s para asegurar que el cliente vea los cambios del admin
   useEffect(() => {
     const imgChannel = supabase
       .channel('realtime-images')
@@ -58,6 +58,21 @@ export default function ClientRegionPage() {
       supabase.removeChannel(cmtChannel)
     }
   }, [])
+
+  // Polling de respaldo: refresca imágenes cada 8s para que el cliente vea cambios de status
+  useEffect(() => {
+    if (!selectedDelivery) return
+    const interval = setInterval(() => {
+      supabase.from('images').select('*').eq('delivery_id', selectedDelivery.id).order('created_at')
+        .then(({ data }) => {
+          if (data) {
+            setImages(data)
+            setSelectedImage(prev => prev ? (data.find(i => i.id === prev.id) ?? prev) : null)
+          }
+        })
+    }, 8000)
+    return () => clearInterval(interval)
+  }, [selectedDelivery])
 
   async function loadRegion() {
     const { data } = await supabase.from('regions').select('*').eq('client_token', token).single()
