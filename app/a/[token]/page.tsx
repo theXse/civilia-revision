@@ -163,10 +163,13 @@ export default function AdminPage() {
 
   async function resetStatus() {
     if (!selectedImage) return
+    await supabase.from('comments').delete().eq('image_id', selectedImage.id)
     await supabase.from('images').update({ status: 'pending' }).eq('id', selectedImage.id)
     const updated = { ...selectedImage, status: 'pending' as const }
     setSelectedImage(updated)
     setImages(images.map(i => i.id === selectedImage.id ? updated : i))
+    setComments([])
+    setCommentCounts(prev => ({ ...prev, [selectedImage.id]: 0 }))
   }
 
   function selectDelivery(d: Delivery) {
