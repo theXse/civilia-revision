@@ -226,11 +226,19 @@ function ProjectCard({ p, act, onArchive, onDelete }: {
   const [notes, setNotes] = useState(p.notes || '')
   const [saving, setSaving] = useState(false)
   const [ready, setReady] = useState(p.ready_for_social || false)
+  const [driveLink, setDriveLink] = useState(p.drive_link || '')
+  const [savingDrive, setSavingDrive] = useState(false)
 
   async function saveNotes() {
     setSaving(true)
     await supabase.from('projects').update({ notes }).eq('id', p.id)
     setSaving(false)
+  }
+
+  async function saveDriveLink() {
+    setSavingDrive(true)
+    await supabase.from('projects').update({ drive_link: driveLink }).eq('id', p.id)
+    setSavingDrive(false)
   }
 
   async function toggleReady() {
@@ -262,6 +270,10 @@ function ProjectCard({ p, act, onArchive, onDelete }: {
             title={ready ? 'Quitar estado listo para redes' : 'Marcar como listo para redes'}
             className={`text-xs px-2.5 py-1.5 rounded-lg font-semibold transition-all ${ready ? 'bg-[#7ab82a] text-white shadow-sm' : 'text-slate-400 hover:text-[#7ab82a] opacity-0 group-hover:opacity-100'}`}
           >{ready ? '✓ Listo para redes' : '🌐 Redes'}</button>
+          {driveLink?.trim()
+            ? <a href={driveLink} target="_blank" className="text-xs px-2 py-1.5 rounded-lg font-semibold bg-green-100 text-green-700 border border-green-300 hover:bg-green-200 transition-colors" title="Abrir carpeta Drive">📁 Drive</a>
+            : <button onClick={() => setShowNotes(true)} title="Agregar link Drive" className="text-xs px-2 py-1.5 rounded-lg text-slate-400 hover:text-green-600 opacity-0 group-hover:opacity-100 transition-colors">📁</button>
+          }
           <button
             onClick={() => setShowNotes(!showNotes)}
             title="Nota para diseñadora"
@@ -273,7 +285,24 @@ function ProjectCard({ p, act, onArchive, onDelete }: {
         </div>
       </div>
       {showNotes && (
-        <div className="px-3 md:px-4 pb-3 border-t border-slate-200 pt-2">
+        <div className="px-3 md:px-4 pb-3 border-t border-slate-200 pt-2 space-y-3">
+          <div>
+            <p className="text-xs text-slate-500 mb-1.5 font-medium">📁 Carpeta Drive (originales en alta)</p>
+            <div className="flex gap-2">
+              <input
+                value={driveLink}
+                onChange={e => setDriveLink(e.target.value)}
+                onBlur={saveDriveLink}
+                placeholder="https://drive.google.com/drive/folders/..."
+                className="flex-1 bg-green-50 border border-green-200 text-slate-700 text-sm px-3 py-2 rounded-lg focus:outline-none focus:border-green-400 placeholder-slate-400"
+              />
+              {driveLink?.trim() && (
+                <a href={driveLink} target="_blank" className="text-xs bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-500 transition-colors font-medium whitespace-nowrap">Abrir ↗</a>
+              )}
+            </div>
+            <span className="text-xs text-slate-400">{savingDrive ? 'Guardando...' : 'Se guarda automáticamente'}</span>
+          </div>
+          <div>
           <p className="text-xs text-slate-500 mb-1.5 font-medium">📝 Nota para diseñadora</p>
           <textarea
             value={notes}
@@ -286,6 +315,7 @@ function ProjectCard({ p, act, onArchive, onDelete }: {
           <div className="flex justify-between items-center mt-1">
             <span className="text-xs text-slate-400">{saving ? 'Guardando...' : 'Se guarda automáticamente'}</span>
             <button onClick={saveNotes} className="text-xs bg-amber-500 hover:bg-amber-400 text-white px-3 py-1 rounded-lg transition-colors">Guardar</button>
+          </div>
           </div>
         </div>
       )}
