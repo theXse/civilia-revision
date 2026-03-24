@@ -66,7 +66,7 @@ export default function ClientRegionPage() {
   useEffect(() => {
     if (!selectedDelivery) return
     const refresh = () => {
-      supabase.from('images').select('*').eq('delivery_id', selectedDelivery.id).order('created_at')
+      supabase.from('images').select('*').eq('delivery_id', selectedDelivery.id).order('sort_order').order('created_at')
         .then(({ data }) => {
           if (data) {
             setImages(data)
@@ -106,7 +106,7 @@ export default function ClientRegionPage() {
   }
 
   async function loadImages(deliveryId: string) {
-    const { data } = await supabase.from('images').select('*').eq('delivery_id', deliveryId).order('created_at')
+    const { data } = await supabase.from('images').select('*').eq('delivery_id', deliveryId).order('sort_order').order('created_at')
     setImages(data || [])
   }
 
