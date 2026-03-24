@@ -40,7 +40,12 @@ export default function AdminPage() {
 
   async function loadDeliveries(projectId: string) {
     const { data } = await supabase.from('deliveries').select('*').eq('project_id', projectId).order('created_at', { ascending: false })
-    setDeliveries(data || [])
+    const list = data || []
+    setDeliveries(list)
+    if (list.length > 0) {
+      setSelectedDelivery(list[0])
+      loadImages(list[0].id)
+    }
   }
 
   async function loadImages(deliveryId: string) {
