@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import type { Region, Project, Delivery, Image as Img, Comment } from '@/lib/supabase'
 import Image from 'next/image'
+import { thumbUrl, BLUR_DATA_URL } from '@/lib/imageUtils'
 
 export default function ClientRegionPage() {
   const { token } = useParams() as { token: string }
@@ -226,7 +227,17 @@ export default function ClientRegionPage() {
                       className={`rounded-2xl overflow-hidden cursor-pointer shadow-lg ${statusBorder(img.status)} ${selectedImage?.id === img.id ? 'ring-2 ring-[#7ab82a]' : ''}`}
                       onClick={() => selectImage(img)}
                     >
-                      <img src={img.url} alt={img.name} className="w-full h-36 md:h-48 object-cover" />
+                      <div className="relative h-36 md:h-48">
+                        <Image
+                          src={thumbUrl(img.url)}
+                          alt={img.name}
+                          fill
+                          sizes="(max-width: 768px) 50vw, 33vw"
+                          className="object-cover"
+                          placeholder="blur"
+                          blurDataURL={BLUR_DATA_URL}
+                        />
+                      </div>
                       <div className="bg-[#15202b] px-2 md:px-3 py-2">{statusBadge(img.status)}</div>
                     </div>
                   ))}
