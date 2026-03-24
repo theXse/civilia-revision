@@ -161,7 +161,7 @@ export default function ClientRegionPage() {
             {images.findIndex(i => i.id === selectedImage.id) > 0 && (
               <button
                 onClick={() => navigateImage('prev')}
-                className="absolute left-3 top-1/2 -translate-y-1/2 z-10 bg-black/50 hover:bg-black/70 text-white w-10 h-10 rounded-full flex items-center justify-center text-xl transition-colors"
+                className="absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-[#7ab82a] hover:bg-[#6aa020] text-white w-14 h-14 rounded-full flex items-center justify-center text-3xl font-bold shadow-lg shadow-black/40 transition-all hover:scale-105"
               >‹</button>
             )}
 
@@ -169,7 +169,7 @@ export default function ClientRegionPage() {
             {images.findIndex(i => i.id === selectedImage.id) < images.length - 1 && (
               <button
                 onClick={() => navigateImage('next')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 z-10 bg-black/50 hover:bg-black/70 text-white w-10 h-10 rounded-full flex items-center justify-center text-xl transition-colors"
+                className="absolute right-4 top-1/2 -translate-y-1/2 z-10 bg-[#7ab82a] hover:bg-[#6aa020] text-white w-14 h-14 rounded-full flex items-center justify-center text-3xl font-bold shadow-lg shadow-black/40 transition-all hover:scale-105"
               >›</button>
             )}
 
