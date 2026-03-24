@@ -131,6 +131,7 @@ export default function ClientRegionPage() {
   const statusBorder = (s: string) =>
     s === 'approved' ? 'border-[#7ab82a] border-4' :
     s === 'changes_requested' ? 'border-red-500 border-4' :
+    s === 'revised' ? 'border-yellow-400 border-4' :
     'border-slate-600 border-2'
 
   const statusBadge = (s: string) =>
@@ -138,6 +139,8 @@ export default function ClientRegionPage() {
       ? <span className="bg-[#7ab82a] text-white text-xs px-2 py-0.5 rounded-full font-medium">Aprobado</span>
       : s === 'changes_requested'
       ? <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-medium">Cambios</span>
+      : s === 'revised'
+      ? <span className="bg-yellow-400 text-black text-xs px-2 py-0.5 rounded-full font-medium">Revisado ★</span>
       : <span className="bg-slate-500 text-white text-xs px-2 py-0.5 rounded-full font-medium">Pendiente</span>
 
   if (loading) return <div className="min-h-screen bg-[#1e2a36] flex items-center justify-center text-slate-300">Cargando...</div>
@@ -222,6 +225,13 @@ export default function ClientRegionPage() {
                 )}
               </div>
 
+              {/* Banner revisado */}
+              {selectedImage.status === 'revised' && (
+                <div className="mb-3 bg-yellow-400/10 border border-yellow-400/40 rounded-xl px-3 py-2.5 text-yellow-300 text-xs text-center font-medium">
+                  El equipo realizó los cambios solicitados. Por favor revisa y aprueba.
+                </div>
+              )}
+
               {/* Botones aprobar/cambios */}
               <div className="flex gap-2">
                 <button
@@ -239,8 +249,9 @@ export default function ClientRegionPage() {
             <div className="flex-1 overflow-y-auto px-4 py-3 border-t border-slate-700/50 space-y-2">
               {comments.length === 0 && <p className="text-slate-600 text-sm text-center py-4">Sin comentarios</p>}
               {comments.map(c => (
-                <div key={c.id} className="bg-slate-800 rounded-xl px-3 py-2.5">
-                  <p className="text-slate-300 text-sm">{c.content}</p>
+                <div key={c.id} className={`rounded-xl px-3 py-2.5 ${c.resolved ? 'bg-slate-800/40' : 'bg-slate-800'}`}>
+                  <p className={`text-sm ${c.resolved ? 'line-through text-slate-500' : 'text-slate-300'}`}>{c.content}</p>
+                  {c.resolved && <p className="text-xs text-slate-600 mt-0.5">Resuelto</p>}
                 </div>
               ))}
             </div>

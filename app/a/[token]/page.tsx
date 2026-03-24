@@ -110,6 +110,19 @@ export default function AdminPage() {
     setComments(comments.filter(c => c.id !== commentId))
   }
 
+  async function toggleResolve(commentId: string, current: boolean) {
+    await supabase.from('comments').update({ resolved: !current }).eq('id', commentId)
+    setComments(comments.map(c => c.id === commentId ? { ...c, resolved: !current } : c))
+  }
+
+  async function markRevised() {
+    if (!selectedImage) return
+    await supabase.from('images').update({ status: 'revised' }).eq('id', selectedImage.id)
+    const updated = { ...selectedImage, status: 'revised' as const }
+    setSelectedImage(updated)
+    setImages(images.map(i => i.id === selectedImage.id ? updated : i))
+  }
+
   function selectDelivery(d: Delivery) {
     setSelectedDelivery(d)
     setSelectedImage(null)
@@ -158,11 +171,13 @@ export default function AdminPage() {
     URL.revokeObjectURL(url)
   }
 
-  const statusBorder = (s: string) => s === 'approved' ? 'border-[#7ab82a] border-4' : s === 'changes_requested' ? 'border-red-500 border-4' : 'border-slate-600 border-2'
+  const statusBorder = (s: string) => s === 'approved' ? 'border-[#7ab82a] border-4' : s === 'changes_requested' ? 'border-red-500 border-4' : s === 'revised' ? 'border-yellow-400 border-4' : 'border-slate-600 border-2'
   const statusBadge = (s: string) => s === 'approved'
     ? <span className="bg-[#7ab82a] text-white text-xs px-2 py-0.5 rounded-full font-medium">Aprobado</span>
     : s === 'changes_requested'
     ? <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-medium">Cambios</span>
+    : s === 'revised'
+    ? <span className="bg-yellow-400 text-black text-xs px-2 py-0.5 rounded-full font-medium">Revisado</span>
     : <span className="bg-slate-500 text-white text-xs px-2 py-0.5 rounded-full font-medium">Pendiente</span>
 
   if (loading) return <div className="min-h-screen bg-[#1e2a36] flex items-center justify-center text-slate-300">Cargando...</div>
@@ -354,22 +369,40 @@ export default function AdminPage() {
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-slate-300">Comentarios del cliente</h3>
               {comments.length > 0 && (
-                <span className="text-xs bg-[#7ab82a] text-white px-2 py-0.5 rounded-full">{comments.length}</span>
+                <span className="text-xs bg-[#7ab82a] text-white px-2 py-0.5 rounded-full">{comments.filter(c => !c.resolved).length}/{comments.length}</span>
               )}
             </div>
             {comments.length === 0
               ? <p className="text-slate-500 text-sm">Sin comentarios aún</p>
               : comments.map(c => (
-                <div key={c.id} className="bg-slate-700 border border-slate-600 rounded-xl p-3 mb-2">
+                <div key={c.id} className={`border rounded-xl p-3 mb-2 transition-colors ${c.resolved ? 'bg-slate-800/50 border-slate-700/50' : 'bg-slate-700 border-slate-600'}`}>
                   <div className="flex justify-between items-start mb-1">
-                    <span className="font-semibold text-[#7ab82a] text-sm">{c.author}</span>
-                    <button onClick={() => deleteComment(c.id)} className="text-red-400 hover:text-red-300 text-xs p-0.5">✕</button>
+                    <span className={`font-semibold text-sm ${c.resolved ? 'text-slate-500' : 'text-[#7ab82a]'}`}>{c.author}</span>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => toggleResolve(c.id, c.resolved)}
+                        title={c.resolved ? 'Marcar como pendiente' : 'Marcar como resuelto'}
+                        className={`text-xs px-2 py-0.5 rounded-lg transition-colors ${c.resolved ? 'bg-slate-600 text-slate-400 hover:bg-slate-500' : 'bg-[#7ab82a]/20 text-[#7ab82a] hover:bg-[#7ab82a]/40'}`}
+                      >{c.resolved ? '↩' : '✓'}</button>
+                      <button onClick={() => deleteComment(c.id)} className="text-red-400 hover:text-red-300 text-xs p-0.5">✕</button>
+                    </div>
                   </div>
-                  <p className="text-slate-300 text-sm">{c.content}</p>
+                  <p className={`text-sm ${c.resolved ? 'line-through text-slate-500' : 'text-slate-300'}`}>{c.content}</p>
                   <p className="text-slate-600 text-xs mt-1">{new Date(c.created_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
               ))
             }
+            {comments.length > 0 && comments.every(c => c.resolved) && selectedImage?.status !== 'approved' && selectedImage?.status !== 'revised' && (
+              <button
+                onClick={markRevised}
+                className="w-full mt-3 bg-yellow-400 hover:bg-yellow-300 text-black text-sm font-bold py-3 rounded-xl transition-colors"
+              >Listo para revisar →</button>
+            )}
+            {selectedImage?.status === 'revised' && (
+              <div className="mt-3 bg-yellow-400/10 border border-yellow-400/30 rounded-xl px-3 py-2.5 text-yellow-400 text-xs text-center">
+                Esperando aprobación del cliente
+              </div>
+            )}
           </div>
         )}
       </div>

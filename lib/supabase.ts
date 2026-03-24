@@ -32,7 +32,7 @@ export type Image = {
   delivery_id: string
   url: string
   name: string
-  status: 'pending' | 'approved' | 'changes_requested'
+  status: 'pending' | 'approved' | 'changes_requested' | 'revised'
   created_at: string
 }
 
@@ -41,5 +41,6 @@ export type Comment = {
   image_id: string
   author: string
   content: string
+  resolved: boolean
   created_at: string
 }
