@@ -96,7 +96,7 @@ export default function ClientRegionPage() {
   }
 
   async function loadDeliveries(projectId: string) {
-    const { data } = await supabase.from('deliveries').select('*').eq('project_id', projectId).order('created_at', { ascending: false })
+    const { data } = await supabase.from('deliveries').select('*').eq('project_id', projectId).order('sort_order').order('created_at', { ascending: false })
     const list = data || []
     setDeliveries(list)
     if (list.length > 0) {
