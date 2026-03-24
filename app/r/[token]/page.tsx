@@ -145,44 +145,48 @@ export default function ClientRegionPage() {
           </div>
 
           {/* Acciones y comentarios */}
-          <div className="bg-[#15202b] flex-shrink-0 overflow-y-auto max-h-[45vh] md:max-h-[35vh]">
+          <div className="bg-[#15202b] border-t border-slate-700 flex-shrink-0">
             {/* Botones aprobar / cambios */}
-            <div className="flex gap-3 px-4 pt-4 pb-3">
+            <div className="flex items-center justify-center gap-3 px-6 py-4">
               <button
                 onClick={() => updateStatus('approved')}
-                className={`flex-1 py-3 rounded-xl text-sm font-bold transition-colors ${selectedImage.status === 'approved' ? 'bg-[#7ab82a] text-white' : 'bg-slate-700 text-slate-300 hover:bg-[#7ab82a] hover:text-white'}`}
-              >✓ Aprobar</button>
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedImage.status === 'approved' ? 'bg-[#7ab82a] text-white shadow-lg shadow-green-900/30' : 'bg-slate-700 text-slate-300 hover:bg-[#7ab82a] hover:text-white'}`}
+              >
+                <span className="text-base">✓</span> Aprobar
+              </button>
               <button
                 onClick={() => updateStatus('changes_requested')}
-                className={`flex-1 py-3 rounded-xl text-sm font-bold transition-colors ${selectedImage.status === 'changes_requested' ? 'bg-red-500 text-white' : 'bg-slate-700 text-slate-300 hover:bg-red-500 hover:text-white'}`}
-              >✗ Solicitar cambios</button>
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${selectedImage.status === 'changes_requested' ? 'bg-red-500 text-white shadow-lg shadow-red-900/30' : 'bg-slate-700 text-slate-300 hover:bg-red-500 hover:text-white'}`}
+              >
+                <span className="text-base">✗</span> Solicitar cambios
+              </button>
             </div>
 
             {/* Comentarios */}
-            <div className="px-4 pb-4">
+            <div className="px-4 pb-4 border-t border-slate-700/50">
               {comments.length > 0 && (
-                <div className="mb-3 space-y-2">
+                <div className="pt-3 mb-3 space-y-2 max-h-32 overflow-y-auto">
                   {comments.map(c => (
-                    <div key={c.id} className="bg-slate-800 rounded-xl p-3">
-                      <span className="font-semibold text-[#7ab82a] text-sm">{c.author}</span>
-                      <p className="text-slate-300 text-sm mt-0.5">{c.content}</p>
+                    <div key={c.id} className="bg-slate-800 rounded-xl px-3 py-2 flex gap-2">
+                      <span className="font-semibold text-[#7ab82a] text-xs flex-shrink-0">{c.author}:</span>
+                      <p className="text-slate-300 text-xs">{c.content}</p>
                     </div>
                   ))}
                 </div>
               )}
-              <div className="flex gap-2">
+              <div className="flex gap-2 pt-3">
                 <input
                   value={author}
                   onChange={e => setAuthor(e.target.value)}
                   placeholder="Tu nombre"
-                  className="w-28 bg-slate-700 text-white text-sm px-3 py-2.5 rounded-xl border border-slate-600 focus:outline-none focus:border-[#7ab82a] placeholder-slate-400"
+                  className="w-24 md:w-32 bg-slate-700 text-white text-sm px-3 py-2.5 rounded-xl border border-slate-600 focus:outline-none focus:border-[#7ab82a] placeholder-slate-500"
                 />
                 <input
                   value={newComment}
                   onChange={e => setNewComment(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && addComment()}
                   placeholder="Escribe un comentario..."
-                  className="flex-1 bg-slate-700 text-white text-sm px-3 py-2.5 rounded-xl border border-slate-600 focus:outline-none focus:border-[#7ab82a] placeholder-slate-400"
+                  className="flex-1 bg-slate-700 text-white text-sm px-3 py-2.5 rounded-xl border border-slate-600 focus:outline-none focus:border-[#7ab82a] placeholder-slate-500"
                 />
                 <button onClick={addComment} className="bg-[#4a6478] text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-[#3a5060] transition-colors flex-shrink-0">Enviar</button>
               </div>
