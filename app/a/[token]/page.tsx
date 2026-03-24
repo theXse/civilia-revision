@@ -336,7 +336,7 @@ export default function AdminPage() {
                 </label>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
-                {images.map(img => (
+                {images.map((img, idx) => (
                   <div
                     key={img.id}
                     className={`relative rounded-2xl overflow-hidden cursor-pointer group shadow-lg ${statusBorder(img.status)} ${selectedImage?.id === img.id ? 'ring-2 ring-white/30' : ''}`}
@@ -345,7 +345,7 @@ export default function AdminPage() {
                     <div className="relative h-36 md:h-48 bg-slate-700">
                       <img
                         src={thumbUrl(img.url, 'grid')}
-                        alt={img.name}
+                        alt={`Lámina ${idx + 1}`}
                         loading="lazy"
                         decoding="async"
                         className="w-full h-full object-cover"
@@ -358,10 +358,11 @@ export default function AdminPage() {
                     </div>
                     <div className="absolute bottom-0 left-0 right-0 bg-[#15202b]/95 px-2 md:px-3 py-2 flex justify-between items-center">
                       {statusBadge(img.status)}
+                      <span className="text-slate-400 text-xs font-medium">Lámina {idx + 1}</span>
                       <button
                         onClick={e => { e.stopPropagation(); deleteImage(img.id) }}
                         className="text-red-400 hover:text-red-300 text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity"
-                      >Eliminar</button>
+                      >✕</button>
                     </div>
                   </div>
                 ))}
@@ -378,7 +379,7 @@ export default function AdminPage() {
         {selectedImage && (
           <div className="fixed inset-0 z-40 bg-[#15202b] overflow-y-auto p-4 md:relative md:inset-auto md:z-auto md:w-80 md:border-l md:border-slate-700 flex flex-col">
             <div className="flex justify-between items-center mb-3">
-              <p className="text-xs text-slate-500 truncate flex-1 mr-2">{selectedImage.name}</p>
+              <p className="text-sm font-semibold text-white truncate flex-1 mr-2">Lámina {images.findIndex(i => i.id === selectedImage.id) + 1}</p>
               <button onClick={() => setSelectedImage(null)} className="text-slate-400 hover:text-white p-1 flex-shrink-0">✕</button>
             </div>
             <img

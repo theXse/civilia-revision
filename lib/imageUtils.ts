@@ -7,16 +7,8 @@
  *  - 'panel'  → 640px  imagen en panel lateral
  *  - 'full'   → 1600px lightbox / vista completa
  */
-export function thumbUrl(url: string, variant: 'grid' | 'panel' | 'full' = 'panel'): string {
-  if (!url.includes('/storage/v1/object/public/')) return url
-  const base = url.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/')
-  const configs = {
-    grid:  { width: 400,  quality: 70 },
-    panel: { width: 640,  quality: 78 },
-    full:  { width: 1600, quality: 88 },
-  }
-  const { width, quality } = configs[variant]
-  return `${base}?width=${width}&quality=${quality}`
+export function thumbUrl(url: string, _variant?: string): string {
+  return url
 }
 
 /**

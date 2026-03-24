@@ -212,7 +212,7 @@ export default function ClientRegionPage() {
 
             {/* Contador */}
             <div className="absolute top-4 left-4 z-10 bg-black/60 text-white text-xs px-3 py-1.5 rounded-full">
-              {images.findIndex(i => i.id === selectedImage.id) + 1} / {images.length}
+              Lámina {images.findIndex(i => i.id === selectedImage.id) + 1} / {images.length}
             </div>
 
             {/* Flecha izquierda */}
@@ -246,7 +246,7 @@ export default function ClientRegionPage() {
               <div className="flex items-center justify-between gap-2 mb-3">
                 <div className="flex items-center gap-2 min-w-0">
                   {statusBadge(selectedImage.status)}
-                  <p className="text-slate-500 text-xs truncate">{selectedImage.name}</p>
+                  <p className="text-white text-sm font-semibold truncate">Lámina {images.findIndex(i => i.id === selectedImage.id) + 1}</p>
                 </div>
                 {/* Botón volver a imagen en mobile cuando está comentando */}
                 {commenting && (
