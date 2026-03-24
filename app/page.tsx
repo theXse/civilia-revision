@@ -14,10 +14,11 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [newProjectName, setNewProjectName] = useState<Record<string, string>>({})
   const [creating, setCreating] = useState<string | null>(null)
+  const [showHistory, setShowHistory] = useState(false)
 
   useEffect(() => {
     Promise.all([
-      supabase.from('projects').select('*').order('name').then(({ data }) => setProjects(data || [])),
+      supabase.from('projects').select('*').order('created_at', { ascending: false }).then(({ data }) => setProjects(data || [])),
       supabase.from('regions').select('*').then(({ data }) => setRegions(data || [])),
     ]).then(() => setLoading(false))
 
@@ -27,13 +28,11 @@ export default function Home() {
   }, [])
 
   async function loadActivity() {
-    // Obtener deliveries con su project_id
     const { data: deliveries } = await supabase.from('deliveries').select('id, project_id')
     if (!deliveries?.length) return
     const deliveryToProject: Record<string, string> = {}
     for (const d of deliveries) deliveryToProject[d.id] = d.project_id
 
-    // Comentarios: agrupar por proyecto via delivery
     const { data: images } = await supabase.from('images').select('id, delivery_id, status')
     if (!images?.length) return
     const imageToProject: Record<string, string> = {}
@@ -66,6 +65,18 @@ export default function Home() {
     setProjects(prev => prev.filter(p => p.id !== id))
   }
 
+  async function archiveProject(p: Project) {
+    if (!window.confirm(`¿Archivar "${p.name}"? Quedará guardado en el historial como solo lectura.`)) return
+    const archived_at = new Date().toISOString()
+    await supabase.from('projects').update({ archived: true, archived_at }).eq('id', p.id)
+    setProjects(prev => prev.map(x => x.id === p.id ? { ...x, archived: true, archived_at } : x))
+  }
+
+  async function unarchiveProject(id: string) {
+    await supabase.from('projects').update({ archived: false, archived_at: null }).eq('id', id)
+    setProjects(prev => prev.map(x => x.id === id ? { ...x, archived: false, archived_at: null } : x))
+  }
+
   async function createProject(region: string) {
     const name = newProjectName[region]?.trim()
     if (!name) return
@@ -73,7 +84,7 @@ export default function Home() {
     const adminToken = crypto.randomUUID()
     const { data } = await supabase.from('projects').insert({ name, region, admin_token: adminToken }).select().single()
     if (data) {
-      setProjects(prev => [...prev, data])
+      setProjects(prev => [data, ...prev])
       setNewProjectName(prev => ({ ...prev, [region]: '' }))
     }
     setCreating(null)
@@ -82,6 +93,18 @@ export default function Home() {
   function getRegionToken(regionName: string) {
     return regions.find(r => r.name === regionName)?.client_token ?? null
   }
+
+  const activeProjects = projects.filter(p => !p.archived)
+  const archivedProjects = projects.filter(p => p.archived)
+
+  // Agrupar archivados por año
+  const byYear: Record<string, Project[]> = {}
+  for (const p of archivedProjects) {
+    const year = new Date(p.archived_at || p.created_at).getFullYear().toString()
+    if (!byYear[year]) byYear[year] = []
+    byYear[year].push(p)
+  }
+  const years = Object.keys(byYear).sort((a, b) => Number(b) - Number(a))
 
   if (loading) return <div className="min-h-screen bg-slate-100 flex items-center justify-center text-slate-600 text-lg">Cargando...</div>
 
@@ -93,10 +116,14 @@ export default function Home() {
         <span className="text-slate-500 font-medium text-xs md:text-sm tracking-wide uppercase flex-1">Portal de Revisión</span>
         <a href="/import" className="text-xs bg-[#4a6478] text-white px-3 py-2 rounded-lg hover:bg-[#3a5060] transition-colors font-medium">⬆ Importar</a>
       </header>
-      <div className="max-w-6xl mx-auto p-4 md:p-8">
+
+      <div className="max-w-6xl mx-auto p-4 md:p-8 space-y-8">
+
+        {/* Proyectos activos */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
           {REGIONS.map(region => {
             const regionToken = getRegionToken(region)
+            const regionProjects = activeProjects.filter(p => p.region === region)
             return (
               <div key={region} className="bg-white rounded-2xl shadow-sm overflow-hidden">
                 <div className="bg-[#4a6478] px-4 md:px-6 py-3 md:py-4 flex items-center justify-between gap-2">
@@ -108,7 +135,7 @@ export default function Home() {
                   )}
                 </div>
                 <div className="p-3 md:p-4 space-y-2">
-                  {projects.filter(p => p.region === region).map(p => {
+                  {regionProjects.map(p => {
                     const act = activity[p.id]
                     return (
                       <div key={p.id} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl px-3 md:px-4 py-3 group">
@@ -126,15 +153,20 @@ export default function Home() {
                             </span>
                           )}
                         </div>
-                        <div className="flex gap-2 items-center flex-shrink-0">
+                        <div className="flex gap-1 items-center flex-shrink-0">
                           <a href={`/a/${p.admin_token}`} target="_blank" className="text-xs bg-[#4a6478] text-white px-2.5 py-1.5 rounded-lg font-medium hover:bg-[#3a5060] transition-colors">Admin</a>
-                          <button onClick={() => deleteProject(p.id)} className="text-xs text-red-400 hover:text-red-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
+                          <button
+                            onClick={() => archiveProject(p)}
+                            title="Archivar proyecto"
+                            className="text-xs text-slate-400 hover:text-[#4a6478] font-medium opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-1.5"
+                          >📦</button>
+                          <button onClick={() => deleteProject(p.id)} className="text-xs text-red-400 hover:text-red-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity px-1 py-1.5">✕</button>
                         </div>
                       </div>
                     )
                   })}
-                  {projects.filter(p => p.region === region).length === 0 && (
-                    <p className="text-slate-400 text-sm text-center py-2">Sin proyectos</p>
+                  {regionProjects.length === 0 && (
+                    <p className="text-slate-400 text-sm text-center py-2">Sin proyectos activos</p>
                   )}
                   <div className="flex gap-2 mt-2">
                     <input
@@ -155,6 +187,58 @@ export default function Home() {
             )
           })}
         </div>
+
+        {/* Historial */}
+        <div>
+          <button
+            onClick={() => setShowHistory(!showHistory)}
+            className="flex items-center gap-2 text-slate-500 hover:text-slate-700 font-semibold text-sm transition-colors mb-4"
+          >
+            <span className={`transition-transform ${showHistory ? 'rotate-90' : ''}`}>▶</span>
+            Historial de campañas
+            {archivedProjects.length > 0 && (
+              <span className="bg-slate-300 text-slate-600 text-xs font-bold px-2 py-0.5 rounded-full">{archivedProjects.length}</span>
+            )}
+          </button>
+
+          {showHistory && (
+            <div className="space-y-6">
+              {years.length === 0 && (
+                <p className="text-slate-400 text-sm text-center py-6 bg-white rounded-2xl">
+                  Aún no hay proyectos archivados. Cuando termines una campaña, archívala con el ícono 📦.
+                </p>
+              )}
+              {years.map(year => (
+                <div key={year}>
+                  <h3 className="text-slate-500 font-bold text-xs uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <span className="h-px flex-1 bg-slate-200" />
+                    {year}
+                    <span className="h-px flex-1 bg-slate-200" />
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    {byYear[year].map(p => (
+                      <div key={p.id} className="bg-white border border-slate-200 rounded-xl px-4 py-3 flex items-center justify-between group">
+                        <div className="min-w-0 flex-1 mr-2">
+                          <p className="font-medium text-slate-600 text-sm truncate">{p.name}</p>
+                          <p className="text-slate-400 text-xs mt-0.5">{p.region} · {new Date(p.archived_at || p.created_at).toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })}</p>
+                        </div>
+                        <div className="flex gap-1 items-center flex-shrink-0">
+                          <a href={`/a/${p.admin_token}`} target="_blank" className="text-xs bg-slate-100 text-slate-600 px-2.5 py-1.5 rounded-lg font-medium hover:bg-slate-200 transition-colors">Ver</a>
+                          <button
+                            onClick={() => unarchiveProject(p.id)}
+                            title="Restaurar a activos"
+                            className="text-xs text-slate-400 hover:text-[#7ab82a] opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-1.5"
+                          >↩</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
       </div>
     </div>
   )

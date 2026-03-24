@@ -17,6 +17,8 @@ export type Project = {
   region: string
   client_token: string
   admin_token: string
+  archived: boolean
+  archived_at: string | null
   created_at: string
 }
 
