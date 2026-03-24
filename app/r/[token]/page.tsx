@@ -59,10 +59,10 @@ export default function ClientRegionPage() {
     }
   }, [])
 
-  // Polling de respaldo: refresca imágenes cada 8s para que el cliente vea cambios de status
+  // Polling cada 5s + refresco al ganar foco para mostrar cambios del admin en tiempo real
   useEffect(() => {
     if (!selectedDelivery) return
-    const interval = setInterval(() => {
+    const refresh = () => {
       supabase.from('images').select('*').eq('delivery_id', selectedDelivery.id).order('created_at')
         .then(({ data }) => {
           if (data) {
@@ -70,8 +70,10 @@ export default function ClientRegionPage() {
             setSelectedImage(prev => prev ? (data.find(i => i.id === prev.id) ?? prev) : null)
           }
         })
-    }, 8000)
-    return () => clearInterval(interval)
+    }
+    const interval = setInterval(refresh, 5000)
+    window.addEventListener('focus', refresh)
+    return () => { clearInterval(interval); window.removeEventListener('focus', refresh) }
   }, [selectedDelivery])
 
   async function loadRegion() {

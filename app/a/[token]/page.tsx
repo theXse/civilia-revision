@@ -137,10 +137,10 @@ export default function AdminPage() {
     const { error: uploadError } = await supabase.storage.from('images').upload(path, resized)
     if (uploadError) return
     const { data: urlData } = supabase.storage.from('images').getPublicUrl(path)
-    await supabase.from('images').update({ url: urlData.publicUrl }).eq('id', imageId)
-    const updated = images.map(i => i.id === imageId ? { ...i, url: urlData.publicUrl } : i)
+    await supabase.from('images').update({ url: urlData.publicUrl, status: 'revised' }).eq('id', imageId)
+    const updated = images.map(i => i.id === imageId ? { ...i, url: urlData.publicUrl, status: 'revised' as const } : i)
     setImages(updated)
-    if (selectedImage?.id === imageId) setSelectedImage({ ...selectedImage, url: urlData.publicUrl })
+    if (selectedImage?.id === imageId) setSelectedImage({ ...selectedImage, url: urlData.publicUrl, status: 'revised' as const })
   }
 
   async function deleteComment(commentId: string) {
@@ -445,16 +445,15 @@ export default function AdminPage() {
                 </div>
               ))
             }
-            {comments.length > 0 && comments.every(c => c.resolved) && selectedImage?.status !== 'approved' && selectedImage?.status !== 'revised' && (
-              <button
-                onClick={markRevised}
-                className="w-full mt-3 bg-yellow-400 hover:bg-yellow-300 text-black text-sm font-bold py-3 rounded-xl transition-colors"
-              >Listo para revisar →</button>
-            )}
-            {selectedImage?.status === 'revised' && (
-              <div className="mt-3 bg-yellow-400/10 border border-yellow-400/30 rounded-xl px-3 py-2.5 text-yellow-400 text-xs text-center">
-                Esperando aprobación del cliente
-              </div>
+            {selectedImage?.status !== 'approved' && (
+              selectedImage?.status === 'revised'
+                ? <div className="mt-3 bg-yellow-400/10 border border-yellow-400/30 rounded-xl px-3 py-2.5 text-yellow-400 text-xs text-center">
+                    Esperando aprobación del cliente
+                  </div>
+                : <button
+                    onClick={markRevised}
+                    className="w-full mt-3 bg-yellow-400 hover:bg-yellow-300 text-black text-sm font-bold py-3 rounded-xl transition-colors"
+                  >Notificar al cliente →</button>
             )}
           </div>
         )}
