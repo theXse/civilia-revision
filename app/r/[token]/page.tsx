@@ -323,7 +323,7 @@ export default function ClientRegionPage() {
               <>
                 <h2 className="font-bold text-white text-base md:text-lg mb-4 md:mb-5">{selectedDelivery.name}</h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
-                  {images.map(img => (
+                  {images.map((img, idx) => (
                     <div
                       key={img.id}
                       className={`rounded-2xl overflow-hidden cursor-pointer shadow-lg ${statusBorder(img.status)} ${selectedImage?.id === img.id ? 'ring-2 ring-[#7ab82a]' : ''}`}
@@ -338,7 +338,10 @@ export default function ClientRegionPage() {
                           className="w-full h-full object-cover"
                         />
                       </div>
-                      <div className="bg-[#15202b] px-2 md:px-3 py-2">{statusBadge(img.status)}</div>
+                      <div className="bg-[#15202b] px-2 md:px-3 py-2 flex items-center justify-between">
+                        {statusBadge(img.status)}
+                        <span className="text-slate-400 text-xs font-medium">Lámina {idx + 1}</span>
+                      </div>
                     </div>
                   ))}
                 </div>
