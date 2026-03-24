@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import type { Region, Project, Delivery, Image as Img, Comment } from '@/lib/supabase'
+import type { Region, Project, Delivery, Image as Img, Comment, ProjectComment } from '@/lib/supabase'
 import Image from 'next/image'
 import { thumbUrl } from '@/lib/imageUtils'
 
@@ -24,6 +24,9 @@ export default function ClientRegionPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [lightbox, setLightbox] = useState(false)
   const [commenting, setCommenting] = useState(false)
+  const [generalComments, setGeneralComments] = useState<ProjectComment[]>([])
+  const [newGeneralComment, setNewGeneralComment] = useState('')
+  const [showGeneralPanel, setShowGeneralPanel] = useState(false)
 
   useEffect(() => { loadRegion() }, [token])
 
@@ -118,6 +121,17 @@ export default function ClientRegionPage() {
     if (data) { setComments([...comments, data]); setNewComment('') }
   }
 
+  async function loadGeneralComments(projectId: string) {
+    const { data } = await supabase.from('project_comments').select('*').eq('project_id', projectId).order('created_at')
+    setGeneralComments(data || [])
+  }
+
+  async function addGeneralComment() {
+    if (!newGeneralComment.trim() || !selectedProject) return
+    const { data } = await supabase.from('project_comments').insert({ project_id: selectedProject.id, author: 'Cliente', content: newGeneralComment.trim() }).select().single()
+    if (data) { setGeneralComments(prev => [...prev, data]); setNewGeneralComment('') }
+  }
+
   async function updateStatus(status: 'approved' | 'changes_requested' | 'pending') {
     if (!selectedImage) return
     await supabase.from('images').update({ status }).eq('id', selectedImage.id)
@@ -131,7 +145,9 @@ export default function ClientRegionPage() {
     setSelectedImage(null)
     setImages([])
     setComments([])
+    setGeneralComments([])
     loadDeliveries(p.id)
+    loadGeneralComments(p.id)
   }
 
   function selectDelivery(d: Delivery) {
@@ -490,6 +506,57 @@ export default function ClientRegionPage() {
               </div>
             )}
           </div>
+
+          {/* Botón comentario general flotante */}
+          {selectedProject && (
+            <button
+              onClick={() => setShowGeneralPanel(true)}
+              className="fixed bottom-6 right-6 z-30 flex items-center gap-2 bg-[#4a6478] hover:bg-[#3a5060] text-white px-4 py-3 rounded-full shadow-lg transition-colors text-sm font-medium"
+            >
+              💬 Comentario general
+              {generalComments.length > 0 && (
+                <span className="bg-yellow-400 text-black text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">{generalComments.length}</span>
+              )}
+            </button>
+          )}
+
+          {/* Panel comentarios generales */}
+          {showGeneralPanel && (
+            <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
+              <div className="absolute inset-0 bg-black/60" onClick={() => setShowGeneralPanel(false)} />
+              <div className="relative bg-[#15202b] rounded-t-2xl md:rounded-2xl w-full md:max-w-lg max-h-[80vh] flex flex-col shadow-2xl">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-slate-700">
+                  <h3 className="font-bold text-white">Comentario general</h3>
+                  <button onClick={() => setShowGeneralPanel(false)} className="text-slate-400 hover:text-white">✕</button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {generalComments.length === 0 && (
+                    <p className="text-slate-500 text-sm text-center py-4">Escribe aquí tus comentarios generales sobre este envío</p>
+                  )}
+                  {generalComments.map(c => (
+                    <div key={c.id} className="bg-slate-700 rounded-xl px-3 py-2.5">
+                      <p className="text-slate-300 text-sm whitespace-pre-wrap">{c.content}</p>
+                      <p className="text-slate-500 text-xs mt-1">{new Date(c.created_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="px-4 py-3 border-t border-slate-700 flex gap-2">
+                  <textarea
+                    value={newGeneralComment}
+                    onChange={e => setNewGeneralComment(e.target.value)}
+                    placeholder="Escribe tu comentario general..."
+                    rows={3}
+                    className="flex-1 bg-slate-700 text-white text-sm px-3 py-2 rounded-xl border border-slate-600 focus:outline-none focus:border-[#7ab82a] placeholder-slate-500 resize-none"
+                  />
+                  <button
+                    onClick={addGeneralComment}
+                    disabled={!newGeneralComment.trim()}
+                    className="self-end bg-[#7ab82a] hover:bg-[#6aa020] text-white px-4 py-2 rounded-xl font-bold disabled:opacity-40 transition-colors"
+                  >→</button>
+                </div>
+              </div>
+            </div>
+          )}
 
         </div>
       )}

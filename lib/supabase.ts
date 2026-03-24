@@ -47,3 +47,11 @@ export type Comment = {
   resolved: boolean
   created_at: string
 }
+
+export type ProjectComment = {
+  id: string
+  project_id: string
+  author: string
+  content: string
+  created_at: string
+}
