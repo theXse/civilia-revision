@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import type { Project, Delivery, Image as Img, Comment, Region } from '@/lib/supabase'
 import Image from 'next/image'
-import { thumbUrl, BLUR_DATA_URL } from '@/lib/imageUtils'
+import { thumbUrl, resizeForUpload } from '@/lib/imageUtils'
 
 export default function AdminPage() {
   const { token } = useParams() as { token: string }
@@ -76,7 +76,8 @@ export default function AdminPage() {
   async function uploadImages(files: FileList) {
     if (!selectedDelivery) return
     setUploading(true)
-    for (const file of Array.from(files)) {
+    for (const original of Array.from(files)) {
+      const file = await resizeForUpload(original)
       const path = `${selectedDelivery.id}/${Date.now()}-${file.name}`
       const { error: uploadError } = await supabase.storage.from('images').upload(path, file)
       if (!uploadError) {
@@ -227,15 +228,13 @@ export default function AdminPage() {
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
                 {images.map(img => (
                   <div key={img.id} className={`relative rounded-2xl overflow-hidden cursor-pointer group shadow-lg ${statusBorder(img.status)}`}>
-                    <div className="relative h-36 md:h-48" onClick={() => setLightbox(img)}>
-                      <Image
+                    <div className="relative h-36 md:h-48 bg-slate-700" onClick={() => setLightbox(img)}>
+                      <img
                         src={thumbUrl(img.url)}
                         alt={img.name}
-                        fill
-                        sizes="(max-width: 768px) 50vw, 33vw"
-                        className="object-cover"
-                        placeholder="blur"
-                        blurDataURL={BLUR_DATA_URL}
+                        loading="lazy"
+                        decoding="async"
+                        className="w-full h-full object-cover"
                       />
                     </div>
                     <div className="absolute bottom-0 left-0 right-0 bg-[#15202b]/95 px-2 md:px-3 py-2 flex justify-between items-center">
