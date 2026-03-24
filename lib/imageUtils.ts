@@ -10,12 +10,13 @@
 export function thumbUrl(url: string, variant: 'grid' | 'panel' | 'full' = 'panel'): string {
   if (!url.includes('/storage/v1/object/public/')) return url
   const base = url.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/')
-  const params: Record<string, string | number> = {
-    grid:  { width: 400,  quality: 70,  format: 'webp' },
-    panel: { width: 640,  quality: 78,  format: 'webp' },
-    full:  { width: 1600, quality: 88,  format: 'webp' },
-  }[variant] as Record<string, string | number>
-  return base + '?' + new URLSearchParams(params as Record<string, string>).toString()
+  const configs = {
+    grid:  { width: 400,  quality: 70 },
+    panel: { width: 640,  quality: 78 },
+    full:  { width: 1600, quality: 88 },
+  }
+  const { width, quality } = configs[variant]
+  return `${base}?width=${width}&quality=${quality}`
 }
 
 /**
