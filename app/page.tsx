@@ -7,29 +7,58 @@ import Image from 'next/image'
 
 const REGIONS = ['Osorno', 'Santiago', 'Valdivia', 'Concepción']
 
+function DriveIcon({ dimmed }: { dimmed?: boolean }) {
+  const opacity = dimmed ? 0.3 : 1
+  return (
+    <svg width="16" height="16" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg" style={{ opacity, flexShrink: 0 }}>
+      <path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
+      <path d="M43.65 25L29.9 1.2C28.55 2 27.4 3.1 26.6 4.5L1.2 48.55c-.8 1.4-1.2 2.95-1.2 4.5h27.5z" fill="#00ac47"/>
+      <path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H60.1l5.9 11.5z" fill="#ea4335"/>
+      <path d="M43.65 25L57.4 1.2C56.05.4 54.5 0 52.9 0H34.4c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
+      <path d="M60.1 53.05H27.5L13.75 76.85c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
+      <path d="M73.4 26.5l-12.6-21.8C60 3.3 58.85 2.2 57.5 1.4L43.65 25l16.45 28.05H87.1c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
+    </svg>
+  )
+}
+
+function DropboxIcon({ dimmed }: { dimmed?: boolean }) {
+  const opacity = dimmed ? 0.3 : 1
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{ opacity, flexShrink: 0 }}>
+      <path d="M6 2L0 6l6 4 6-4L6 2zM18 2l-6 4 6 4 6-4-6-4zM0 14l6 4 6-4-6-4-6 4zM18 10l-6 4 6 4 6-4-6-4zM6 19.5l6 3.5 6-3.5-6-4-6 4z" fill="#0061ff"/>
+    </svg>
+  )
+}
+
 export default function Home() {
   const [projects, setProjects] = useState<Project[]>([])
   const [regions, setRegions] = useState<Region[]>([])
   const [activity, setActivity] = useState<Record<string, { comments: number; changes: number }>>({})
   const [loading, setLoading] = useState(true)
+  const [editingRegion, setEditingRegion] = useState<string | null>(null)
+  const [urlInputs, setUrlInputs] = useState<Record<string, { drive: string; dropbox: string }>>({})
 
   useEffect(() => {
     Promise.all([
       supabase.from('projects').select('*').order('name').then(({ data }) => setProjects(data || [])),
-      supabase.from('regions').select('*').then(({ data }) => setRegions(data || [])),
+      supabase.from('regions').select('*').then(({ data }) => {
+        const list = data || []
+        setRegions(list)
+        const inputs: Record<string, { drive: string; dropbox: string }> = {}
+        for (const r of list) inputs[r.id] = { drive: r.drive_url || '', dropbox: r.dropbox_url || '' }
+        setUrlInputs(inputs)
+      }),
     ]).then(() => setLoading(false))
 
     loadActivity()
   }, [])
 
   async function loadActivity() {
-    // Obtener deliveries con su project_id
     const { data: deliveries } = await supabase.from('deliveries').select('id, project_id')
     if (!deliveries?.length) return
     const deliveryToProject: Record<string, string> = {}
     for (const d of deliveries) deliveryToProject[d.id] = d.project_id
 
-    // Comentarios: agrupar por proyecto via delivery
     const { data: images } = await supabase.from('images').select('id, delivery_id, status')
     if (!images?.length) return
     const imageToProject: Record<string, string> = {}
@@ -62,8 +91,23 @@ export default function Home() {
     setProjects(prev => prev.filter(p => p.id !== id))
   }
 
-  function getRegionToken(regionName: string) {
-    return regions.find(r => r.name === regionName)?.client_token ?? null
+  async function saveUrls(regionId: string) {
+    const inputs = urlInputs[regionId]
+    if (!inputs) return
+    await supabase.from('regions').update({
+      drive_url: inputs.drive.trim() || null,
+      dropbox_url: inputs.dropbox.trim() || null,
+    }).eq('id', regionId)
+    setRegions(prev => prev.map(r =>
+      r.id === regionId
+        ? { ...r, drive_url: inputs.drive.trim() || null, dropbox_url: inputs.dropbox.trim() || null }
+        : r
+    ))
+    setEditingRegion(null)
+  }
+
+  function getRegion(regionName: string): Region | null {
+    return regions.find(r => r.name === regionName) ?? null
   }
 
   if (loading) return <div className="min-h-screen bg-slate-100 flex items-center justify-center text-slate-600 text-lg">Cargando...</div>
@@ -78,20 +122,107 @@ export default function Home() {
       </header>
       <div className="max-w-6xl mx-auto p-4 md:p-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
-          {REGIONS.map(region => {
-            const regionToken = getRegionToken(region)
+          {REGIONS.map(regionName => {
+            const regionData = getRegion(regionName)
+            const regionToken = regionData?.client_token ?? null
+            const isEditing = regionData ? editingRegion === regionData.id : false
+
             return (
-              <div key={region} className="bg-white rounded-2xl shadow-sm overflow-hidden">
+              <div key={regionName} className="bg-white rounded-2xl shadow-sm overflow-hidden">
+                {/* Header */}
                 <div className="bg-[#4a6478] px-4 md:px-6 py-3 md:py-4 flex items-center justify-between gap-2">
-                  <h2 className="text-white font-semibold text-sm md:text-base tracking-wide">{region}</h2>
+                  <h2 className="text-white font-semibold text-sm md:text-base tracking-wide">{regionName}</h2>
                   {regionToken && (
                     <a href={`/r/${regionToken}`} target="_blank" className="text-xs bg-[#7ab82a] text-white px-3 py-2 rounded-lg font-medium hover:bg-[#6aa020] transition-colors whitespace-nowrap">
                       Ver link ↗
                     </a>
                   )}
                 </div>
+
+                {/* Cloud storage links */}
+                {regionData && (
+                  isEditing ? (
+                    <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <DriveIcon />
+                        <input
+                          type="url"
+                          value={urlInputs[regionData.id]?.drive ?? ''}
+                          onChange={e => setUrlInputs(prev => ({ ...prev, [regionData.id]: { ...prev[regionData.id], drive: e.target.value } }))}
+                          placeholder="URL de Google Drive..."
+                          className="flex-1 text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-[#4a6478]"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <DropboxIcon />
+                        <input
+                          type="url"
+                          value={urlInputs[regionData.id]?.dropbox ?? ''}
+                          onChange={e => setUrlInputs(prev => ({ ...prev, [regionData.id]: { ...prev[regionData.id], dropbox: e.target.value } }))}
+                          placeholder="URL de Dropbox..."
+                          className="flex-1 text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-[#4a6478]"
+                        />
+                      </div>
+                      <div className="flex gap-2 justify-end pt-1">
+                        <button onClick={() => setEditingRegion(null)} className="text-xs text-slate-500 hover:text-slate-700 px-3 py-1.5 rounded-lg transition-colors">
+                          Cancelar
+                        </button>
+                        <button onClick={() => saveUrls(regionData.id)} className="text-xs bg-[#4a6478] text-white px-3 py-1.5 rounded-lg hover:bg-[#3a5060] transition-colors font-medium">
+                          Guardar
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="px-4 py-2 border-b border-slate-100 flex items-center gap-2">
+                      {regionData.drive_url ? (
+                        <a
+                          href={regionData.drive_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-blue-600 px-2.5 py-1.5 rounded-lg hover:bg-blue-50 transition-colors"
+                        >
+                          <DriveIcon />
+                          Drive
+                        </a>
+                      ) : (
+                        <span className="flex items-center gap-1.5 text-xs text-slate-300 px-2.5 py-1.5">
+                          <DriveIcon dimmed />
+                          Drive
+                        </span>
+                      )}
+                      {regionData.dropbox_url ? (
+                        <a
+                          href={regionData.dropbox_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-blue-600 px-2.5 py-1.5 rounded-lg hover:bg-blue-50 transition-colors"
+                        >
+                          <DropboxIcon />
+                          Dropbox
+                        </a>
+                      ) : (
+                        <span className="flex items-center gap-1.5 text-xs text-slate-300 px-2.5 py-1.5">
+                          <DropboxIcon dimmed />
+                          Dropbox
+                        </span>
+                      )}
+                      <button
+                        onClick={() => setEditingRegion(regionData.id)}
+                        className="ml-auto text-slate-300 hover:text-slate-500 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                        title="Editar links"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                      </button>
+                    </div>
+                  )
+                )}
+
+                {/* Projects list */}
                 <div className="p-3 md:p-4 space-y-2">
-                  {projects.filter(p => p.region === region).map(p => {
+                  {projects.filter(p => p.region === regionName).map(p => {
                     const act = activity[p.id]
                     return (
                       <div key={p.id} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl px-3 md:px-4 py-3 group">
@@ -116,7 +247,7 @@ export default function Home() {
                       </div>
                     )
                   })}
-                  {projects.filter(p => p.region === region).length === 0 && (
+                  {projects.filter(p => p.region === regionName).length === 0 && (
                     <p className="text-slate-400 text-sm text-center py-4">Sin proyectos</p>
                   )}
                 </div>
