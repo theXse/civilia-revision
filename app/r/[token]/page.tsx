@@ -7,6 +7,27 @@ import type { Region, Project, Delivery, Image as Img, Comment } from '@/lib/sup
 import Image from 'next/image'
 import { thumbUrl } from '@/lib/imageUtils'
 
+function DriveIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+      <path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
+      <path d="M43.65 25L29.9 1.2C28.55 2 27.4 3.1 26.6 4.5L1.2 48.55c-.8 1.4-1.2 2.95-1.2 4.5h27.5z" fill="#00ac47"/>
+      <path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H60.1l5.9 11.5z" fill="#ea4335"/>
+      <path d="M43.65 25L57.4 1.2C56.05.4 54.5 0 52.9 0H34.4c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
+      <path d="M60.1 53.05H27.5L13.75 76.85c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
+      <path d="M73.4 26.5l-12.6-21.8C60 3.3 58.85 2.2 57.5 1.4L43.65 25l16.45 28.05H87.1c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
+    </svg>
+  )
+}
+
+function DropboxIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+      <path d="M6 2L0 6l6 4 6-4L6 2zM18 2l-6 4 6 4 6-4-6-4zM0 14l6 4 6-4-6-4-6 4zM18 10l-6 4 6 4 6-4-6-4zM6 19.5l6 3.5 6-3.5-6-4-6 4z" fill="#0061ff"/>
+    </svg>
+  )
+}
+
 export default function ClientRegionPage() {
   const { token } = useParams() as { token: string }
 
@@ -273,8 +294,20 @@ export default function ClientRegionPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
                 {projects.map(p => (
                   <div key={p.id} className="bg-[#15202b] rounded-2xl overflow-hidden shadow-lg border border-slate-700">
-                    <div className="bg-[#4a6478] px-4 md:px-5 py-3">
+                    <div className="bg-[#4a6478] px-4 md:px-5 py-3 flex items-center justify-between gap-2">
                       <h3 className="text-white font-semibold text-sm">{p.name}</h3>
+                      <div className="flex items-center gap-1.5">
+                        {region?.drive_url && (
+                          <a href={region.drive_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="flex items-center gap-1 bg-white/10 hover:bg-white/20 text-white text-xs px-2 py-1 rounded-lg transition-colors" title="Abrir Google Drive">
+                            <DriveIcon />
+                          </a>
+                        )}
+                        {region?.dropbox_url && (
+                          <a href={region.dropbox_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="flex items-center gap-1 bg-white/10 hover:bg-white/20 text-white text-xs px-2 py-1 rounded-lg transition-colors" title="Abrir Dropbox">
+                            <DropboxIcon />
+                          </a>
+                        )}
+                      </div>
                     </div>
                     <div className="px-4 md:px-5 py-4">
                       <button
