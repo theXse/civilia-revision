@@ -54,8 +54,9 @@ export default function Home() {
     ]).then(() => setLoading(false))
 
     loadActivity()
-    window.addEventListener('focus', loadActivity)
-    return () => window.removeEventListener('focus', loadActivity)
+    const handleVisibility = () => { if (document.visibilityState === 'visible') loadActivity() }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
   }, [])
 
   async function loadActivity() {
