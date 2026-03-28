@@ -153,6 +153,11 @@ export default function ClientRegionPage() {
     if (data) { setGeneralComments(prev => [...prev, data]); setNewGeneralComment('') }
   }
 
+  async function toggleResolve(commentId: string, current: boolean) {
+    await supabase.from('comments').update({ resolved: !current }).eq('id', commentId)
+    setComments(comments.map(c => c.id === commentId ? { ...c, resolved: !current } : c))
+  }
+
   async function updateStatus(status: 'approved' | 'changes_requested' | 'pending') {
     if (!selectedImage) return
     await supabase.from('images').update({ status }).eq('id', selectedImage.id)
@@ -337,7 +342,14 @@ export default function ClientRegionPage() {
               {comments.length === 0 && <p className="text-slate-600 text-sm text-center py-4">Sin comentarios</p>}
               {comments.map(c => (
                 <div key={c.id} className={`rounded-xl px-3 py-2.5 ${c.resolved ? 'bg-slate-800/40' : 'bg-slate-800'}`}>
-                  <p className={`text-sm ${c.resolved ? 'line-through text-slate-500' : 'text-slate-300'}`}>{c.content}</p>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className={`text-sm flex-1 ${c.resolved ? 'line-through text-slate-500' : 'text-slate-300'}`}>{c.content}</p>
+                    <button
+                      onClick={() => toggleResolve(c.id, c.resolved)}
+                      title={c.resolved ? 'Marcar como pendiente' : 'Marcar como resuelto'}
+                      className={`flex-shrink-0 text-xs px-2 py-0.5 rounded-lg transition-colors ${c.resolved ? 'bg-slate-700 text-slate-500 hover:bg-slate-600' : 'bg-[#7ab82a]/20 text-[#7ab82a] hover:bg-[#7ab82a]/40'}`}
+                    >{c.resolved ? '↩' : '✓'}</button>
+                  </div>
                   {c.resolved && <p className="text-xs text-slate-600 mt-0.5">Resuelto ✓</p>}
                   {c.reply && (
                     <div className="mt-2 bg-[#15202b] border-l-2 border-blue-400 rounded-r-lg px-2.5 py-2">
