@@ -39,7 +39,7 @@ export default function Home() {
   const [creating, setCreating] = useState<string | null>(null)
   const [showHistory, setShowHistory] = useState(false)
   const [editingRegion, setEditingRegion] = useState<string | null>(null)
-  const [urlInputs, setUrlInputs] = useState<Record<string, { drive: string; dropbox: string }>>({})
+  const [urlInputs, setUrlInputs] = useState<Record<string, { drive: string; dropbox: string; delivery: string }>>({})
 
   useEffect(() => {
     Promise.all([
@@ -47,8 +47,8 @@ export default function Home() {
       supabase.from('regions').select('*').then(({ data }) => {
         const list = data || []
         setRegions(list)
-        const inputs: Record<string, { drive: string; dropbox: string }> = {}
-        for (const r of list) inputs[r.id] = { drive: r.drive_url || '', dropbox: r.dropbox_url || '' }
+        const inputs: Record<string, { drive: string; dropbox: string; delivery: string }> = {}
+        for (const r of list) inputs[r.id] = { drive: r.drive_url || '', dropbox: r.dropbox_url || '', delivery: r.delivery_url || '' }
         setUrlInputs(inputs)
       }),
     ]).then(() => setLoading(false))
@@ -147,10 +147,11 @@ export default function Home() {
     await supabase.from('regions').update({
       drive_url: inputs.drive.trim() || null,
       dropbox_url: inputs.dropbox.trim() || null,
+      delivery_url: inputs.delivery.trim() || null,
     }).eq('id', regionId)
     setRegions(prev => prev.map(r =>
       r.id === regionId
-        ? { ...r, drive_url: inputs.drive.trim() || null, dropbox_url: inputs.dropbox.trim() || null }
+        ? { ...r, drive_url: inputs.drive.trim() || null, dropbox_url: inputs.dropbox.trim() || null, delivery_url: inputs.delivery.trim() || null }
         : r
     ))
     setEditingRegion(null)
@@ -228,6 +229,16 @@ export default function Home() {
                           className="flex-1 text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-[#4a6478]"
                         />
                       </div>
+                      <div className="flex items-center gap-2">
+                        <DriveIcon />
+                        <input
+                          type="url"
+                          value={urlInputs[regionData.id]?.delivery ?? ''}
+                          onChange={e => setUrlInputs(prev => ({ ...prev, [regionData.id]: { ...prev[regionData.id], delivery: e.target.value } }))}
+                          placeholder="URL Entrega Final..."
+                          className="flex-1 text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-[#4a6478]"
+                        />
+                      </div>
                       <div className="flex gap-2 justify-end pt-1">
                         <button onClick={() => setEditingRegion(null)} className="text-xs text-slate-500 hover:text-slate-700 px-3 py-1.5 rounded-lg transition-colors">
                           Cancelar
@@ -259,6 +270,17 @@ export default function Home() {
                         <span className="flex items-center gap-1.5 text-xs text-slate-300 px-2.5 py-1.5">
                           <DropboxIcon dimmed />
                           Dropbox
+                        </span>
+                      )}
+                      {regionData.delivery_url ? (
+                        <a href={regionData.delivery_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs font-medium text-green-700 hover:text-green-800 px-2.5 py-1.5 rounded-lg bg-green-50 hover:bg-green-100 border border-green-200 transition-colors">
+                          <DriveIcon />
+                          Entrega Final
+                        </a>
+                      ) : (
+                        <span className="flex items-center gap-1.5 text-xs text-slate-300 px-2.5 py-1.5">
+                          <DriveIcon dimmed />
+                          Entrega Final
                         </span>
                       )}
                       <button
@@ -371,8 +393,6 @@ function ProjectCard({ p, act, allApproved, onArchive, onDelete }: {
   const [showNotes, setShowNotes] = useState(!!(p.notes?.trim()))
   const [notes, setNotes] = useState(p.notes || '')
   const [saving, setSaving] = useState(false)
-  const [driveLink, setDriveLink] = useState(p.drive_link || '')
-  const [savingDrive, setSavingDrive] = useState(false)
   const [ready, setReady] = useState(p.ready_for_social || false)
 
   async function toggleReady() {
@@ -385,12 +405,6 @@ function ProjectCard({ p, act, allApproved, onArchive, onDelete }: {
     setSaving(true)
     await supabase.from('projects').update({ notes }).eq('id', p.id)
     setSaving(false)
-  }
-
-  async function saveDriveLink() {
-    setSavingDrive(true)
-    await supabase.from('projects').update({ drive_link: driveLink }).eq('id', p.id)
-    setSavingDrive(false)
   }
 
   return (
@@ -431,10 +445,6 @@ function ProjectCard({ p, act, allApproved, onArchive, onDelete }: {
               {ready ? 'En Instagram' : 'Listo para IG'}
             </button>
           )}
-          {driveLink?.trim()
-            ? <a href={driveLink} target="_blank" className="text-xs px-2 py-1.5 rounded-lg font-semibold bg-green-100 text-green-700 border border-green-300 hover:bg-green-200 transition-colors" title="Abrir carpeta Drive">📁 Drive</a>
-            : <button onClick={() => setShowNotes(true)} title="Agregar link Drive" className="text-xs px-2 py-1.5 rounded-lg text-slate-400 hover:text-green-600 opacity-0 group-hover:opacity-100 transition-colors">📁</button>
-          }
           <button
             onClick={() => setShowNotes(!showNotes)}
             title="Nota para diseñadora"
@@ -447,22 +457,6 @@ function ProjectCard({ p, act, allApproved, onArchive, onDelete }: {
       </div>
       {showNotes && (
         <div className="px-3 md:px-4 pb-3 border-t border-slate-200 pt-2 space-y-3">
-          <div>
-            <p className="text-xs text-slate-500 mb-1.5 font-medium">📁 Carpeta Drive (originales en alta)</p>
-            <div className="flex gap-2">
-              <input
-                value={driveLink}
-                onChange={e => setDriveLink(e.target.value)}
-                onBlur={saveDriveLink}
-                placeholder="https://drive.google.com/drive/folders/..."
-                className="flex-1 bg-green-50 border border-green-200 text-slate-700 text-sm px-3 py-2 rounded-lg focus:outline-none focus:border-green-400 placeholder-slate-400"
-              />
-              {driveLink?.trim() && (
-                <a href={driveLink} target="_blank" className="text-xs bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-500 transition-colors font-medium whitespace-nowrap">Abrir ↗</a>
-              )}
-            </div>
-            <span className="text-xs text-slate-400">{savingDrive ? 'Guardando...' : 'Se guarda automáticamente'}</span>
-          </div>
           <div>
           <p className="text-xs text-slate-500 mb-1.5 font-medium">📝 Nota para diseñadora</p>
           <textarea

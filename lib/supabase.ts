@@ -11,6 +11,7 @@ export type Region = {
   client_token: string
   drive_url: string | null
   dropbox_url: string | null
+  delivery_url: string | null
 }
 
 export type Project = {
