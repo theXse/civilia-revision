@@ -33,7 +33,7 @@ function DropboxIcon({ dimmed }: { dimmed?: boolean }) {
 export default function Home() {
   const [projects, setProjects] = useState<Project[]>([])
   const [regions, setRegions] = useState<Region[]>([])
-  const [activity, setActivity] = useState<Record<string, { comments: number; changes: number }>>({})
+  const [activity, setActivity] = useState<Record<string, { comments: number; changes: number; total: number; approved: number }>>({})
   const [loading, setLoading] = useState(true)
   const [newProjectName, setNewProjectName] = useState<Record<string, string>>({})
   const [creating, setCreating] = useState<string | null>(null)
@@ -56,35 +56,56 @@ export default function Home() {
     loadActivity()
     const handleVisibility = () => { if (document.visibilityState === 'visible') loadActivity() }
     document.addEventListener('visibilitychange', handleVisibility)
-    return () => document.removeEventListener('visibilitychange', handleVisibility)
+
+    const imgChannel = supabase
+      .channel('dashboard-realtime-images')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'images' }, () => {
+        loadActivity()
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'comments' }, () => {
+        loadActivity()
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments' }, () => {
+        loadActivity()
+      })
+      .subscribe()
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility)
+      supabase.removeChannel(imgChannel)
+    }
   }, [])
 
   async function loadActivity() {
     const [{ data: deliveries }, { data: images }, { data: comments }] = await Promise.all([
       supabase.from('deliveries').select('id, project_id'),
       supabase.from('images').select('id, delivery_id, status'),
-      supabase.from('comments').select('image_id'),
+      supabase.from('comments').select('image_id').eq('resolved', false),
     ])
     if (!deliveries?.length) return
     const deliveryToProject: Record<string, string> = {}
     for (const d of deliveries) deliveryToProject[d.id] = d.project_id
     const imageToProject: Record<string, string> = {}
     const changesPerProject: Record<string, number> = {}
+    const totalPerProject: Record<string, number> = {}
+    const approvedPerProject: Record<string, number> = {}
     for (const img of (images || [])) {
       const pId = deliveryToProject[img.delivery_id]
       if (!pId) continue
       imageToProject[img.id] = pId
       if (img.status === 'changes_requested') changesPerProject[pId] = (changesPerProject[pId] || 0) + 1
+      totalPerProject[pId] = (totalPerProject[pId] || 0) + 1
+      if (img.status === 'approved') approvedPerProject[pId] = (approvedPerProject[pId] || 0) + 1
     }
     const commentsPerProject: Record<string, number> = {}
     for (const c of (comments || [])) {
       const pId = imageToProject[c.image_id]
       if (pId) commentsPerProject[pId] = (commentsPerProject[pId] || 0) + 1
     }
-    const result: Record<string, { comments: number; changes: number }> = {}
-    const allProjectIds = new Set([...Object.keys(commentsPerProject), ...Object.keys(changesPerProject)])
+    const result: Record<string, { comments: number; changes: number; total: number; approved: number }> = {}
+    const allProjectIds = new Set([...Object.keys(commentsPerProject), ...Object.keys(changesPerProject), ...Object.keys(totalPerProject)])
     for (const pId of allProjectIds) {
-      result[pId] = { comments: commentsPerProject[pId] || 0, changes: changesPerProject[pId] || 0 }
+      result[pId] = { comments: commentsPerProject[pId] || 0, changes: changesPerProject[pId] || 0, total: totalPerProject[pId] || 0, approved: approvedPerProject[pId] || 0 }
     }
     setActivity(result)
   }
@@ -258,7 +279,8 @@ export default function Home() {
                 <div className="p-3 md:p-4 space-y-2">
                   {regionProjects.map(p => {
                     const act = activity[p.id]
-                    return <ProjectCard key={p.id} p={p} act={act} onArchive={archiveProject} onDelete={deleteProject} />
+                    const allApproved = (act?.total ?? 0) > 0 && (act?.total ?? 0) === (act?.approved ?? 0)
+                    return <ProjectCard key={p.id} p={p} act={act} allApproved={allApproved} onArchive={archiveProject} onDelete={deleteProject} />
                   })}
                   {regionProjects.length === 0 && (
                     <p className="text-slate-400 text-sm text-center py-2">Sin proyectos activos</p>
@@ -339,16 +361,16 @@ export default function Home() {
   )
 }
 
-function ProjectCard({ p, act, onArchive, onDelete }: {
+function ProjectCard({ p, act, allApproved, onArchive, onDelete }: {
   p: Project
-  act?: { comments: number; changes: number }
+  act?: { comments: number; changes: number; total: number; approved: number }
+  allApproved?: boolean
   onArchive: (p: Project) => void
   onDelete: (id: string) => void
 }) {
   const [showNotes, setShowNotes] = useState(!!(p.notes?.trim()))
   const [notes, setNotes] = useState(p.notes || '')
   const [saving, setSaving] = useState(false)
-  const [ready, setReady] = useState(p.ready_for_social || false)
   const [driveLink, setDriveLink] = useState(p.drive_link || '')
   const [savingDrive, setSavingDrive] = useState(false)
 
@@ -362,12 +384,6 @@ function ProjectCard({ p, act, onArchive, onDelete }: {
     setSavingDrive(true)
     await supabase.from('projects').update({ drive_link: driveLink }).eq('id', p.id)
     setSavingDrive(false)
-  }
-
-  async function toggleReady() {
-    const val = !ready
-    await supabase.from('projects').update({ ready_for_social: val }).eq('id', p.id)
-    setReady(val)
   }
 
   return (
@@ -388,11 +404,16 @@ function ProjectCard({ p, act, onArchive, onDelete }: {
           )}
         </div>
         <div className="flex gap-1 items-center flex-shrink-0">
-          <button
-            onClick={toggleReady}
-            title={ready ? 'Quitar estado listo para redes' : 'Marcar como listo para redes'}
-            className={`text-xs px-2.5 py-1.5 rounded-lg font-semibold transition-all ${ready ? 'bg-[#7ab82a] text-white shadow-sm' : 'text-slate-400 hover:text-[#7ab82a] opacity-0 group-hover:opacity-100'}`}
-          >{ready ? '✓ Listo para redes' : '🌐 Redes'}</button>
+          {allApproved ? (
+            <span className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg font-semibold bg-gradient-to-r from-purple-600 to-pink-500 text-white shadow-sm animate-pulse">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="white"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+              Listo para IG
+            </span>
+          ) : (act?.total ?? 0) > 0 ? (
+            <span className="text-xs px-2.5 py-1.5 text-slate-400 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+              {act!.approved}/{act!.total} ✓
+            </span>
+          ) : null}
           {driveLink?.trim()
             ? <a href={driveLink} target="_blank" className="text-xs px-2 py-1.5 rounded-lg font-semibold bg-green-100 text-green-700 border border-green-300 hover:bg-green-200 transition-colors" title="Abrir carpeta Drive">📁 Drive</a>
             : <button onClick={() => setShowNotes(true)} title="Agregar link Drive" className="text-xs px-2 py-1.5 rounded-lg text-slate-400 hover:text-green-600 opacity-0 group-hover:opacity-100 transition-colors">📁</button>
