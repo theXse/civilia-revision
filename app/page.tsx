@@ -355,13 +355,21 @@ export default function Home() {
                     <span className="h-px flex-1 bg-slate-200" />
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                    {byYear[year].map(p => (
+                    {byYear[year].map(p => {
+                      const act = activity[p.id]
+                      const allApproved = (act?.total ?? 0) > 0 && (act?.total ?? 0) === (act?.approved ?? 0)
+                      return (
                       <div key={p.id} className="bg-white border border-slate-200 rounded-xl px-4 py-3 flex items-center justify-between group">
                         <div className="min-w-0 flex-1 mr-2">
                           <p className="font-medium text-slate-600 text-sm truncate">{p.name}</p>
                           <p className="text-slate-400 text-xs mt-0.5">{p.region} · {new Date(p.archived_at || p.created_at).toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })}</p>
                         </div>
                         <div className="flex gap-1 items-center flex-shrink-0">
+                          {allApproved && (
+                            <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg font-semibold bg-[#7ab82a] text-white">
+                              ✓ Todo aprobado
+                            </span>
+                          )}
                           <a href={`/a/${p.admin_token}`} target="_blank" className="text-xs bg-slate-100 text-slate-600 px-2.5 py-1.5 rounded-lg font-medium hover:bg-slate-200 transition-colors">Ver</a>
                           <button
                             onClick={() => unarchiveProject(p.id)}
@@ -370,7 +378,8 @@ export default function Home() {
                           >↩</button>
                         </div>
                       </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               ))}
