@@ -25,6 +25,7 @@ export type Project = {
   notes: string
   drive_link: string
   ready_for_social: boolean
+  listo_para_ig: boolean
   created_at: string
 }
 
@@ -42,6 +43,7 @@ export type Image = {
   name: string
   status: 'pending' | 'approved' | 'changes_requested' | 'revised'
   published: boolean
+  on_instagram: boolean
   sort_order: number
   created_at: string
 }
