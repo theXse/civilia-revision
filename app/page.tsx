@@ -180,6 +180,7 @@ export default function Home() {
         <Image src="/logo.png" alt="Civilia" width={120} height={40} className="object-contain" />
         <div className="h-6 w-px bg-slate-200" />
         <span className="text-slate-500 font-medium text-xs md:text-sm tracking-wide uppercase flex-1">Portal de Revisión</span>
+        <a href="/api/export" download className="text-xs bg-slate-100 text-slate-600 px-3 py-2 rounded-lg hover:bg-slate-200 transition-colors font-medium">⬇ Exportar</a>
         <a href="/import" className="text-xs bg-[#4a6478] text-white px-3 py-2 rounded-lg hover:bg-[#3a5060] transition-colors font-medium">⬆ Importar</a>
       </header>
 
