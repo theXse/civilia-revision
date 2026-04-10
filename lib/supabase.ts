@@ -33,6 +33,31 @@ export type Delivery = {
   id: string
   project_id: string
   name: string
+  sort_order: number
+  problem_notes: string | null
+  facebook_link: string | null
+  client_notified_at: string | null
+  client_approved_at: string | null
+  approval_token: string | null
+  created_at: string
+}
+
+export type NotificationItem = {
+  project_name: string
+  delivery_name: string
+  delivery_id: string
+  facebook_link?: string
+  admin_url?: string
+  approval_token?: string
+}
+
+export type NotificationQueue = {
+  id: string
+  region: string
+  type: 'link_approval' | 'subido_ig'
+  items: NotificationItem[]
+  scheduled_at: string
+  sent_at: string | null
   created_at: string
 }
 

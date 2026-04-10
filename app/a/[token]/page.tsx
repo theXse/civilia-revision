@@ -34,6 +34,11 @@ export default function AdminPage() {
   const [generalComments, setGeneralComments] = useState<ProjectComment[]>([])
   const [showGeneral, setShowGeneral] = useState(false)
   const [archivedNotice, setArchivedNotice] = useState(false)
+  const [problemNotes, setProblemNotes] = useState('')
+  const [sendingProblem, setSendingProblem] = useState(false)
+  const [facebookLink, setFacebookLink] = useState('')
+  const [savingLink, setSavingLink] = useState(false)
+  const [queuingLink, setQueuingLink] = useState(false)
 
   useEffect(() => { loadProject() }, [token])
 
@@ -62,6 +67,13 @@ export default function AdminPage() {
       supabase.removeChannel(cmtChannel)
     }
   }, [])
+
+  useEffect(() => {
+    if (selectedDelivery) {
+      setProblemNotes(selectedDelivery.problem_notes || '')
+      setFacebookLink(selectedDelivery.facebook_link || '')
+    }
+  }, [selectedDelivery])
 
   async function loadGeneralComments(projectId: string) {
     const { data } = await supabase.from('project_comments').select('*').eq('project_id', projectId).order('created_at')
@@ -286,6 +298,60 @@ export default function AdminPage() {
     setImages(images.map(i => i.id === selectedImage.id ? updated : i))
     setComments([])
     setCommentCounts(prev => ({ ...prev, [selectedImage.id]: 0 }))
+  }
+
+  async function reportProblem() {
+    if (!problemNotes.trim() || !project || !selectedDelivery) return
+    setSendingProblem(true)
+    await fetch('/api/notify-problem', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        projectName: project.name,
+        deliveryName: selectedDelivery.name,
+        problemNotes: problemNotes.trim(),
+        region: project.region,
+      }),
+    })
+    setSendingProblem(false)
+    alert('Problema reportado a Ximena')
+  }
+
+  async function saveFacebookLink() {
+    if (!selectedDelivery) return
+    setSavingLink(true)
+    await supabase.from('deliveries').update({ facebook_link: facebookLink.trim() || null }).eq('id', selectedDelivery.id)
+    setDeliveries(prev => prev.map(d => d.id === selectedDelivery.id ? { ...d, facebook_link: facebookLink.trim() || null } : d))
+    setSavingLink(false)
+  }
+
+  async function notifyClient() {
+    if (!project || !selectedDelivery) return
+    setQueuingLink(true)
+    // Save the link first
+    await supabase.from('deliveries').update({ facebook_link: facebookLink.trim() || null, client_notified_at: new Date().toISOString() }).eq('id', selectedDelivery.id)
+    // Get the approval token
+    const { data: updatedDelivery } = await supabase.from('deliveries').select('approval_token').eq('id', selectedDelivery.id).single()
+    // Add to notification queue
+    await fetch('/api/queue-notification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        region: project.region,
+        type: 'link_approval',
+        item: {
+          project_name: project.name,
+          delivery_name: selectedDelivery.name,
+          delivery_id: selectedDelivery.id,
+          facebook_link: facebookLink.trim(),
+          approval_token: updatedDelivery?.approval_token,
+        },
+      }),
+    })
+    setDeliveries(prev => prev.map(d => d.id === selectedDelivery.id ? { ...d, client_notified_at: new Date().toISOString() } : d))
+    setSelectedDelivery(prev => prev ? { ...prev, client_notified_at: new Date().toISOString() } : null)
+    setQueuingLink(false)
+    alert('¡Notificación programada! El cliente recibirá el email en máximo 1 hora.')
   }
 
   function selectDelivery(d: Delivery) {
@@ -518,12 +584,64 @@ export default function AdminPage() {
         <div className="flex-1 p-4 md:p-6 overflow-y-auto">
           {selectedDelivery ? (
             <>
-              <div className="flex items-center justify-between mb-4 md:mb-5">
-                <h2 className="font-bold text-white text-base md:text-lg">{selectedDelivery.name}</h2>
-                <label className={`cursor-pointer bg-[#4a6478] text-white px-3 md:px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-[#3a5060] transition-colors ${uploading ? 'opacity-50' : ''}`}>
-                  {uploading ? 'Subiendo...' : '+ Subir'}
-                  <input type="file" multiple accept="image/*" className="hidden" onChange={e => e.target.files && uploadImages(e.target.files)} disabled={uploading} />
-                </label>
+              <div className="mb-4 md:mb-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="font-bold text-white text-base md:text-lg">{selectedDelivery.name}</h2>
+                  <label className={`cursor-pointer bg-[#4a6478] text-white px-3 md:px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-[#3a5060] transition-colors ${uploading ? 'opacity-50' : ''}`}>
+                    {uploading ? 'Subiendo...' : '+ Subir'}
+                    <input type="file" multiple accept="image/*" className="hidden" onChange={e => e.target.files && uploadImages(e.target.files)} disabled={uploading} />
+                  </label>
+                </div>
+
+                {/* Problem report */}
+                <div className="bg-[#1a2433] rounded-xl p-3 mb-3 border border-slate-700">
+                  <p className="text-xs font-semibold text-red-400 uppercase tracking-wider mb-2">⚠️ Reportar problema</p>
+                  <div className="flex gap-2">
+                    <input
+                      value={problemNotes}
+                      onChange={e => setProblemNotes(e.target.value)}
+                      placeholder="Ej: Error en resolución imagen 3, cambiar tipografía..."
+                      className="flex-1 bg-slate-700 text-white text-sm px-3 py-2 rounded-lg border border-slate-600 focus:outline-none focus:border-red-400 placeholder-slate-500"
+                    />
+                    <button
+                      onClick={reportProblem}
+                      disabled={!problemNotes.trim() || sendingProblem}
+                      className="bg-red-600 text-white text-xs px-3 py-2 rounded-lg font-semibold hover:bg-red-500 disabled:opacity-40 transition-colors whitespace-nowrap"
+                    >
+                      {sendingProblem ? 'Enviando...' : 'Reportar'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Facebook link + client notification */}
+                <div className="bg-[#1a2433] rounded-xl p-3 border border-slate-700">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-blue-400 uppercase tracking-wider">🔗 Link para el cliente</p>
+                    {selectedDelivery.client_approved_at && (
+                      <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full font-semibold">✓ Aprobado por cliente</span>
+                    )}
+                    {selectedDelivery.client_notified_at && !selectedDelivery.client_approved_at && (
+                      <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded-full font-semibold">⏳ Pendiente aprobación</span>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      value={facebookLink}
+                      onChange={e => setFacebookLink(e.target.value)}
+                      onBlur={saveFacebookLink}
+                      placeholder="https://facebook.com/..."
+                      className="flex-1 bg-slate-700 text-white text-sm px-3 py-2 rounded-lg border border-slate-600 focus:outline-none focus:border-blue-400 placeholder-slate-500"
+                    />
+                    <button
+                      onClick={notifyClient}
+                      disabled={!facebookLink.trim() || queuingLink}
+                      className="bg-blue-600 text-white text-xs px-3 py-2 rounded-lg font-semibold hover:bg-blue-500 disabled:opacity-40 transition-colors whitespace-nowrap"
+                    >
+                      {queuingLink ? 'Guardando...' : 'Notificar cliente'}
+                    </button>
+                  </div>
+                  {savingLink && <p className="text-xs text-slate-500 mt-1">Guardando...</p>}
+                </div>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
                 {images.map((img, idx) => (
