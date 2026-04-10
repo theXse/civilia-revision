@@ -459,16 +459,44 @@ function ProjectCard({ p, act, allApproved, onArchive, onDelete }: {
   const [saving, setSaving] = useState(false)
   const [ready, setReady] = useState(p.ready_for_social || false)
   const [listoParaIG, setListoParaIG] = useState(p.listo_para_ig || false)
+  const [showUploadForm, setShowUploadForm] = useState(false)
+  const [uploadComment, setUploadComment] = useState('')
+  const [sendingNotif, setSendingNotif] = useState(false)
 
-  async function toggleReady() {
-    const val = !ready
-    await supabase.from('projects').update({ ready_for_social: val, archived: val }).eq('id', p.id)
+  async function confirmSubido() {
+    setSendingNotif(true)
+    await supabase.from('projects').update({ ready_for_social: true, archived: true }).eq('id', p.id)
     const { data: deliveries } = await supabase.from('deliveries').select('id').eq('project_id', p.id)
     if (deliveries && deliveries.length > 0) {
       const ids = deliveries.map((d: { id: string }) => d.id)
-      await supabase.from('images').update({ on_instagram: val }).in('delivery_id', ids)
+      await supabase.from('images').update({ on_instagram: true }).in('delivery_id', ids)
     }
-    setReady(val)
+    try {
+      await fetch('/api/notify-uploaded', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectName: p.name,
+          region: p.region,
+          comment: uploadComment,
+          adminUrl: `${window.location.origin}/a/${p.admin_token}`,
+        }),
+      })
+    } catch {}
+    setReady(true)
+    setShowUploadForm(false)
+    setUploadComment('')
+    setSendingNotif(false)
+  }
+
+  async function unmarkSubido() {
+    await supabase.from('projects').update({ ready_for_social: false, archived: false }).eq('id', p.id)
+    const { data: deliveries } = await supabase.from('deliveries').select('id').eq('project_id', p.id)
+    if (deliveries && deliveries.length > 0) {
+      const ids = deliveries.map((d: { id: string }) => d.id)
+      await supabase.from('images').update({ on_instagram: false }).in('delivery_id', ids)
+    }
+    setReady(false)
   }
 
   async function saveNotes() {
@@ -507,7 +535,7 @@ function ProjectCard({ p, act, allApproved, onArchive, onDelete }: {
           )}
           {listoParaIG && (
             <button
-              onClick={ready ? toggleReady : toggleReady}
+              onClick={ready ? unmarkSubido : () => setShowUploadForm(v => !v)}
               title={ready ? 'Desmarcar como subido a Instagram' : 'Marcar como subido a Instagram'}
               className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg font-semibold transition-all ${ready ? 'bg-gradient-to-r from-purple-600 to-pink-500 text-white shadow-sm' : 'bg-orange-100 text-orange-600 border border-orange-200 hover:bg-orange-200'}`}
             >
@@ -525,6 +553,33 @@ function ProjectCard({ p, act, allApproved, onArchive, onDelete }: {
           <button onClick={() => onDelete(p.id)} className="text-xs text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity px-1 py-1.5">✕</button>
         </div>
       </div>
+      {showUploadForm && !ready && (
+        <div className="px-3 md:px-4 pb-3 border-t border-purple-100 pt-2">
+          <p className="text-xs text-purple-700 mb-1.5 font-medium">📸 ¿Algún comentario sobre esta subida?</p>
+          <textarea
+            value={uploadComment}
+            onChange={e => setUploadComment(e.target.value)}
+            placeholder="Ej: Se subió el jueves 10 a las 18:00, 3 fotos y 1 reel..."
+            rows={2}
+            className="w-full bg-purple-50 border border-purple-200 text-slate-700 text-sm px-3 py-2 rounded-lg focus:outline-none focus:border-purple-400 placeholder-slate-400 resize-none"
+          />
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={confirmSubido}
+              disabled={sendingNotif}
+              className="text-xs bg-gradient-to-r from-purple-600 to-pink-500 text-white px-3 py-1.5 rounded-lg font-semibold disabled:opacity-60 hover:opacity-90 transition-opacity"
+            >
+              {sendingNotif ? 'Enviando...' : '✓ Confirmar subida'}
+            </button>
+            <button
+              onClick={() => { setShowUploadForm(false); setUploadComment('') }}
+              className="text-xs text-slate-400 hover:text-slate-600 px-2 py-1.5 rounded-lg"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
       {showNotes && (
         <div className="px-3 md:px-4 pb-3 border-t border-slate-200 pt-2 space-y-3">
           <div>
