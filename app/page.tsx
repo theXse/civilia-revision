@@ -458,9 +458,14 @@ function ProjectCard({ p, act, allApproved, onArchive, onDelete }: {
   const [notes, setNotes] = useState(p.notes || '')
   const [saving, setSaving] = useState(false)
   const [ready, setReady] = useState(p.ready_for_social || false)
-  const [listoParaIG, setListoParaIG] = useState(p.listo_para_ig || false)
-  const [showUploadForm, setShowUploadForm] = useState(false)
+  const [showSubido, setShowSubido] = useState(false)
   const [sendingNotif, setSendingNotif] = useState(false)
+  const [showProblema, setShowProblema] = useState(false)
+  const [problemaText, setProblemaText] = useState('')
+  const [sendingProblema, setSendingProblema] = useState(false)
+  const [showCliente, setShowCliente] = useState(!!(p.facebook_link?.trim()))
+  const [facebookLink, setFacebookLink] = useState(p.facebook_link || '')
+  const [sendingCliente, setSendingCliente] = useState(false)
 
   async function confirmSubido() {
     setSendingNotif(true)
@@ -470,7 +475,6 @@ function ProjectCard({ p, act, allApproved, onArchive, onDelete }: {
       const ids = deliveries.map((d: { id: string }) => d.id)
       await supabase.from('images').update({ on_instagram: true }).in('delivery_id', ids)
     }
-    // Queue batch notification (1 hour window)
     await fetch('/api/queue-notification', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -485,7 +489,7 @@ function ProjectCard({ p, act, allApproved, onArchive, onDelete }: {
       }),
     })
     setReady(true)
-    setShowUploadForm(false)
+    setShowSubido(false)
     setSendingNotif(false)
   }
 
@@ -497,6 +501,47 @@ function ProjectCard({ p, act, allApproved, onArchive, onDelete }: {
       await supabase.from('images').update({ on_instagram: false }).in('delivery_id', ids)
     }
     setReady(false)
+  }
+
+  async function reportarProblema() {
+    if (!problemaText.trim()) return
+    setSendingProblema(true)
+    await fetch('/api/notify-problem', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        projectName: p.name,
+        deliveryName: '',
+        problemNotes: problemaText.trim(),
+        region: p.region,
+      }),
+    })
+    setProblemaText('')
+    setShowProblema(false)
+    setSendingProblema(false)
+    alert('✓ Problema reportado a Ximena')
+  }
+
+  async function notificarCliente() {
+    if (!facebookLink.trim()) return
+    setSendingCliente(true)
+    await supabase.from('projects').update({ facebook_link: facebookLink.trim() }).eq('id', p.id)
+    await fetch('/api/queue-notification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        region: p.region,
+        type: 'link_approval',
+        item: {
+          project_name: p.name,
+          delivery_name: p.name,
+          delivery_id: p.id,
+          facebook_link: facebookLink.trim(),
+        },
+      }),
+    })
+    setSendingCliente(false)
+    alert('✓ Notificación programada — el cliente recibirá el email en máximo 1 hora')
   }
 
   async function saveNotes() {
@@ -533,18 +578,29 @@ function ProjectCard({ p, act, allApproved, onArchive, onDelete }: {
               {act!.approved}/{act!.total} ✓
             </span>
           )}
-          {listoParaIG && (
-            <button
-              onClick={ready ? unmarkSubido : () => setShowUploadForm(v => !v)}
-              title={ready ? 'Desmarcar como subido a Instagram' : 'Marcar como subido a Instagram'}
-              className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg font-semibold transition-all ${ready ? 'bg-gradient-to-r from-purple-600 to-pink-500 text-white shadow-sm' : 'bg-orange-100 text-orange-600 border border-orange-200 hover:bg-orange-200'}`}
-            >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
-              {ready ? 'Subido a Instagram' : 'Listo para IG'}
-            </button>
-          )}
+          {/* Botón problema */}
           <button
-            onClick={() => setShowNotes(!showNotes)}
+            onClick={() => { setShowProblema(v => !v); setShowCliente(false); setShowSubido(false); setShowNotes(false) }}
+            title="Reportar problema"
+            className="text-xs px-2 py-1.5 rounded-lg transition-colors text-red-400 hover:bg-red-50 opacity-0 group-hover:opacity-100"
+          >⚠️</button>
+          {/* Botón link cliente */}
+          <button
+            onClick={() => { setShowCliente(v => !v); setShowProblema(false); setShowSubido(false); setShowNotes(false) }}
+            title="Enviar link al cliente"
+            className={`text-xs px-2 py-1.5 rounded-lg transition-colors font-semibold ${facebookLink.trim() ? 'text-blue-700 bg-blue-100 border border-blue-300 hover:bg-blue-200' : 'text-slate-400 hover:text-blue-600 opacity-0 group-hover:opacity-100'}`}
+          >{facebookLink.trim() ? '🔗 Link' : '🔗'}</button>
+          {/* Botón subido a IG */}
+          <button
+            onClick={ready ? unmarkSubido : () => { setShowSubido(v => !v); setShowProblema(false); setShowCliente(false); setShowNotes(false) }}
+            title={ready ? 'Desmarcar como subido' : 'Marcar como subido a Instagram'}
+            className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg font-semibold transition-all ${ready ? 'bg-gradient-to-r from-purple-600 to-pink-500 text-white shadow-sm' : 'bg-orange-100 text-orange-600 border border-orange-200 hover:bg-orange-200'}`}
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+            {ready ? 'Subido ✓' : 'Subido'}
+          </button>
+          <button
+            onClick={() => { setShowNotes(!showNotes); setShowProblema(false); setShowCliente(false); setShowSubido(false) }}
             title="Nota para diseñadora"
             className={`text-xs px-2 py-1.5 rounded-lg transition-colors font-semibold ${notes?.trim() ? 'text-amber-700 bg-amber-100 border border-amber-300 hover:bg-amber-200' : 'text-slate-400 hover:text-amber-600 opacity-0 group-hover:opacity-100'}`}
           >{notes?.trim() ? '📝 Nota' : '📝'}</button>
@@ -553,29 +609,66 @@ function ProjectCard({ p, act, allApproved, onArchive, onDelete }: {
           <button onClick={() => onDelete(p.id)} className="text-xs text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity px-1 py-1.5">✕</button>
         </div>
       </div>
-      {showUploadForm && !ready && (
+
+      {/* Panel: Reportar problema */}
+      {showProblema && (
+        <div className="px-3 md:px-4 pb-3 border-t border-red-100 pt-2">
+          <p className="text-xs text-red-500 font-semibold mb-1.5">⚠️ Reportar problema a Ximena</p>
+          <div className="flex gap-2">
+            <input
+              value={problemaText}
+              onChange={e => setProblemaText(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && reportarProblema()}
+              placeholder="Ej: Error en resolución, tipografía incorrecta..."
+              className="flex-1 bg-red-50 border border-red-200 text-slate-700 text-sm px-3 py-2 rounded-lg focus:outline-none focus:border-red-400 placeholder-slate-400"
+            />
+            <button
+              onClick={reportarProblema}
+              disabled={!problemaText.trim() || sendingProblema}
+              className="bg-red-500 text-white text-xs px-3 py-2 rounded-lg font-semibold hover:bg-red-400 disabled:opacity-40 transition-colors whitespace-nowrap"
+            >{sendingProblema ? 'Enviando...' : 'Reportar'}</button>
+          </div>
+        </div>
+      )}
+
+      {/* Panel: Link para el cliente */}
+      {showCliente && (
+        <div className="px-3 md:px-4 pb-3 border-t border-blue-100 pt-2">
+          <p className="text-xs text-blue-600 font-semibold mb-1.5">🔗 Link de campaña para el cliente</p>
+          <div className="flex gap-2">
+            <input
+              value={facebookLink}
+              onChange={e => setFacebookLink(e.target.value)}
+              placeholder="https://facebook.com/..."
+              className="flex-1 bg-blue-50 border border-blue-200 text-slate-700 text-sm px-3 py-2 rounded-lg focus:outline-none focus:border-blue-400 placeholder-slate-400"
+            />
+            <button
+              onClick={notificarCliente}
+              disabled={!facebookLink.trim() || sendingCliente}
+              className="bg-blue-600 text-white text-xs px-3 py-2 rounded-lg font-semibold hover:bg-blue-500 disabled:opacity-40 transition-colors whitespace-nowrap"
+            >{sendingCliente ? 'Enviando...' : 'Notificar cliente'}</button>
+          </div>
+        </div>
+      )}
+
+      {/* Panel: Confirmar subida a IG */}
+      {showSubido && !ready && (
         <div className="px-3 md:px-4 pb-3 border-t border-purple-100 pt-2">
           <div className="flex gap-2 items-center">
-            <p className="text-xs text-purple-700 flex-1">¿Confirmar que esta campaña fue subida a Instagram?</p>
+            <p className="text-xs text-purple-700 flex-1">¿Confirmar que <strong>{p.name}</strong> fue subido a Instagram?</p>
             <button
               onClick={confirmSubido}
               disabled={sendingNotif}
               className="text-xs bg-gradient-to-r from-purple-600 to-pink-500 text-white px-3 py-1.5 rounded-lg font-semibold disabled:opacity-60 hover:opacity-90 transition-opacity whitespace-nowrap"
-            >
-              {sendingNotif ? 'Guardando...' : '✓ Confirmar'}
-            </button>
-            <button
-              onClick={() => setShowUploadForm(false)}
-              className="text-xs text-slate-400 hover:text-slate-600 px-2 py-1.5 rounded-lg"
-            >
-              Cancelar
-            </button>
+            >{sendingNotif ? 'Guardando...' : '✓ Confirmar'}</button>
+            <button onClick={() => setShowSubido(false)} className="text-xs text-slate-400 hover:text-slate-600 px-2 py-1.5 rounded-lg">Cancelar</button>
           </div>
         </div>
       )}
+
+      {/* Panel: Notas para diseñadora */}
       {showNotes && (
-        <div className="px-3 md:px-4 pb-3 border-t border-slate-200 pt-2 space-y-3">
-          <div>
+        <div className="px-3 md:px-4 pb-3 border-t border-slate-200 pt-2">
           <p className="text-xs text-slate-500 mb-1.5 font-medium">📝 Nota para diseñadora</p>
           <textarea
             value={notes}
@@ -588,7 +681,6 @@ function ProjectCard({ p, act, allApproved, onArchive, onDelete }: {
           <div className="flex justify-between items-center mt-1">
             <span className="text-xs text-slate-400">{saving ? 'Guardando...' : 'Se guarda automáticamente'}</span>
             <button onClick={saveNotes} className="text-xs bg-amber-500 hover:bg-amber-400 text-white px-3 py-1 rounded-lg transition-colors">Guardar</button>
-          </div>
           </div>
         </div>
       )}

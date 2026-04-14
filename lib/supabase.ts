@@ -26,6 +26,8 @@ export type Project = {
   drive_link: string
   ready_for_social: boolean
   listo_para_ig: boolean
+  facebook_link: string | null
+  problem_notes: string | null
   created_at: string
 }
 
