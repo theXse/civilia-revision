@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true }) // Fail silently
   }
 
-  const transporter = nodemailer.createTransport({ service: 'gmail', auth: { user, pass } })
+  const transporter = nodemailer.createTransport({ host: 'smtp.gmail.com', port: 465, secure: true, auth: { user, pass } })
 
   const html = `
     <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px;background:#fef2f2;border-radius:12px;border:1px solid #fecaca">

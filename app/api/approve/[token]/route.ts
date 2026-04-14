@@ -26,7 +26,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
 
   if (user && pass) {
     const project = delivery.projects as { name: string; region: string }
-    const transporter = nodemailer.createTransport({ service: 'gmail', auth: { user, pass } })
+    const transporter = nodemailer.createTransport({ host: 'smtp.gmail.com', port: 465, secure: true, auth: { user, pass } })
     const html = `
       <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px;background:#f0fdf4;border-radius:12px;border:1px solid #bbf7d0">
         <h2 style="margin:0 0 16px;color:#16a34a;font-size:18px">✅ Cliente aprobó la campaña</h2>

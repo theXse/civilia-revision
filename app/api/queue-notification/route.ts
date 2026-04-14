@@ -23,7 +23,7 @@ async function processOverdueBatches() {
   if (!pending?.length) return
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://civilia-revision.vercel.app'
-  const transporter = nodemailer.createTransport({ service: 'gmail', auth: { user, pass } })
+  const transporter = nodemailer.createTransport({ host: 'smtp.gmail.com', port: 465, secure: true, auth: { user, pass } })
 
   for (const batch of pending) {
     const clientEmail = REGION_EMAILS[batch.region]

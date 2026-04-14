@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, sent: 0 })
   }
 
-  const transporter = nodemailer.createTransport({ service: 'gmail', auth: { user, pass } })
+  const transporter = nodemailer.createTransport({ host: 'smtp.gmail.com', port: 465, secure: true, auth: { user, pass } })
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://civilia-revision.vercel.app'
   let sent = 0
 

@@ -9,7 +9,12 @@ export async function GET() {
     return NextResponse.json({ error: 'Email no configurado. Agrega NOTIFY_GMAIL_USER y NOTIFY_GMAIL_APP_PASSWORD en Vercel.' }, { status: 500 })
   }
 
-  const transporter = nodemailer.createTransport({ service: 'gmail', auth: { user, pass } })
+  const transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    auth: { user, pass },
+  })
 
   const html = `
     <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px;background:#f0fdf4;border-radius:12px;border:1px solid #bbf7d0">
