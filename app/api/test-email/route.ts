@@ -1,37 +1,37 @@
 import { NextResponse } from 'next/server'
 import nodemailer from 'nodemailer'
+import { buildLinkApprovalEmail } from '@/lib/emailTemplates'
 
 export async function GET() {
   const user = process.env.NOTIFY_GMAIL_USER
   const pass = process.env.NOTIFY_GMAIL_APP_PASSWORD
 
   if (!user || !pass) {
-    return NextResponse.json({ error: 'Email no configurado. Agrega NOTIFY_GMAIL_USER y NOTIFY_GMAIL_APP_PASSWORD en Vercel.' }, { status: 500 })
+    return NextResponse.json({ error: 'Email no configurado.' }, { status: 500 })
   }
 
-  const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
-    auth: { user, pass },
-  })
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://civilia-revision.vercel.app'
+  const transporter = nodemailer.createTransport({ host: 'smtp.gmail.com', port: 465, secure: true, auth: { user, pass } })
 
-  const html = `
-    <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px;background:#f0fdf4;border-radius:12px;border:1px solid #bbf7d0">
-      <h2 style="margin:0 0 16px;color:#16a34a;font-size:18px">✅ Test de notificaciones — La Ruta</h2>
-      <p style="margin:0 0 8px">El sistema de notificaciones está funcionando correctamente.</p>
-      <p style="margin:0;font-size:13px;color:#64748b">Este es un email de prueba enviado desde civilia-revision.vercel.app</p>
-    </div>
-  `
+  // Ejemplo inventado para Santiago (Mauro)
+  const { subject, html } = buildLinkApprovalEmail('Santiago', [
+    {
+      project_name: 'Jardín del Norte — Campaña Otoño',
+      delivery_name: 'Carrusel 1 — 5 imágenes',
+      delivery_id: 'test',
+      facebook_link: 'https://facebook.com',
+      approval_token: 'test-token-preview',
+    }
+  ], baseUrl)
 
   try {
     await transporter.sendMail({
       from: `"La Ruta" <${user}>`,
       to: 'ximena@laruta.ia, rafael@laruta.ai',
-      subject: '✅ Test de notificaciones — La Ruta',
+      subject: `[TEST] ${subject}`,
       html,
     })
-    return NextResponse.json({ ok: true, message: 'Email enviado a ximena@laruta.ia y rafael@laruta.ai' })
+    return NextResponse.json({ ok: true, message: 'Email de prueba enviado a ximena@laruta.ia y rafael@laruta.ai' })
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
     return NextResponse.json({ error: msg }, { status: 500 })

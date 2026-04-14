@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import nodemailer from 'nodemailer'
 import { supabase } from '@/lib/supabase'
+import { buildApprovalConfirmEmail } from '@/lib/emailTemplates'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
 
-  // Find the delivery by approval_token
   const { data: delivery } = await supabase
     .from('deliveries')
     .select('*, projects(*)')
@@ -16,33 +16,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
     return NextResponse.redirect(new URL('/aprobado?error=1', req.url))
   }
 
-  // Mark as approved
-  const client_approved_at = new Date().toISOString()
-  await supabase.from('deliveries').update({ client_approved_at }).eq('id', delivery.id)
+  await supabase.from('deliveries').update({ client_approved_at: new Date().toISOString() }).eq('id', delivery.id)
 
-  // Send immediate email to Ximena + Erika
   const user = process.env.NOTIFY_GMAIL_USER
   const pass = process.env.NOTIFY_GMAIL_APP_PASSWORD
 
   if (user && pass) {
     const project = delivery.projects as { name: string; region: string }
     const transporter = nodemailer.createTransport({ host: 'smtp.gmail.com', port: 465, secure: true, auth: { user, pass } })
-    const html = `
-      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px;background:#f0fdf4;border-radius:12px;border:1px solid #bbf7d0">
-        <h2 style="margin:0 0 16px;color:#16a34a;font-size:18px">✅ Cliente aprobó la campaña</h2>
-        <p style="margin:0 0 8px"><strong>Proyecto:</strong> ${project?.name}</p>
-        <p style="margin:0 0 8px"><strong>Categoría:</strong> ${delivery.name}</p>
-        <p style="margin:0 0 8px"><strong>Ciudad:</strong> ${project?.region}</p>
-        <p style="margin:0;font-size:13px;color:#64748b">Aprobado el ${new Date().toLocaleString('es-CL')}</p>
-      </div>
-    `
+    const { subject, html } = buildApprovalConfirmEmail(project?.name, delivery.name, project?.region)
     try {
-      await transporter.sendMail({
-        from: `"La Ruta" <${user}>`,
-        to: 'ximena@laruta.ia, erika@laruta.ai',
-        subject: `✅ Aprobado: ${project?.name} — ${delivery.name}`,
-        html,
-      })
+      await transporter.sendMail({ from: `"La Ruta" <${user}>`, to: 'ximena@laruta.ia, erika@laruta.ai', subject, html })
     } catch (e) {
       console.error('Error sending approval email:', e)
     }
