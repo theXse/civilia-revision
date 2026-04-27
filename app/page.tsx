@@ -176,7 +176,7 @@ export default function Home() {
       const res = await fetch('/api/review-images', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ region }),
+        body: JSON.stringify({ region, force: true }),
       })
       const data = await res.json()
       if (data.reviews) {

@@ -195,7 +195,8 @@ function buildEmailHtml(region: string, projectReviews: ProjectReview[]): string
 }
 
 export async function POST(req: NextRequest) {
-  const { region, monthKey } = await req.json()
+  // force=true: llamada manual desde el botón — siempre muestra resultados, no bloquea por already_sent
+  const { region, monthKey, force } = await req.json()
   if (!region) return NextResponse.json({ error: 'region required' }, { status: 400 })
 
   const user = process.env.NOTIFY_GMAIL_USER
@@ -212,14 +213,17 @@ export async function POST(req: NextRequest) {
   const now = new Date()
   const resolvedMonthKey = monthKey || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
-  // Prevención de doble envío: registrar ANTES de procesar (upsert con conflict)
-  const { error: insertError } = await supabase
+  // Verificar si ya se envió el correo este mes
+  const { data: existing } = await supabase
     .from('ai_reviews')
-    .insert({ region, month: resolvedMonthKey })
-    .select()
+    .select('id')
+    .eq('region', region)
+    .eq('month', resolvedMonthKey)
+    .maybeSingle()
 
-  if (insertError?.code === '23505') {
-    // Ya existe — carrera de condición evitada
+  const alreadySent = !!existing
+  // Si no es forzado y ya se envió → bloquear (evita duplicados en trigger automático)
+  if (!force && alreadySent) {
     return NextResponse.json({ ok: false, reason: 'already_sent' })
   }
 
@@ -248,21 +252,14 @@ export async function POST(req: NextRequest) {
 
   const deliveryIds = deliveries.map((d: DeliveryRecord) => d.id)
 
-  // Obtener imágenes subidas este mes
-  const monthStart = `${resolvedMonthKey}-01T00:00:00Z`
-  const [year, month] = resolvedMonthKey.split('-').map(Number)
-  const nextMonth = month === 12 ? `${year + 1}-01` : `${year}-${String(month + 1).padStart(2, '0')}`
-  const monthEnd = `${nextMonth}-01T00:00:00Z`
-
+  // Obtener TODAS las imágenes activas (sin filtro de mes — revisa todo lo subido en proyectos activos)
   const { data: images } = await supabase
     .from('images')
     .select('id, url, name, delivery_id, created_at')
     .in('delivery_id', deliveryIds)
-    .gte('created_at', monthStart)
-    .lt('created_at', monthEnd)
 
   if (!images?.length) {
-    return NextResponse.json({ ok: false, reason: 'no_images_this_month' })
+    return NextResponse.json({ ok: false, reason: 'no_images' })
   }
 
   // Agrupar imágenes por proyecto
@@ -295,14 +292,17 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  // Guardar qué proyectos se revisaron
-  await supabase
-    .from('ai_reviews')
-    .update({ projects_reviewed: projectReviews.map(p => p.projectName) })
-    .eq('region', region)
-    .eq('month', resolvedMonthKey)
+  // Registrar revisión (solo si es la primera vez este mes)
+  if (!alreadySent) {
+    await supabase.from('ai_reviews').insert({
+      region,
+      month: resolvedMonthKey,
+      projects_reviewed: projectReviews.map(p => p.projectName),
+    })
+  }
 
-  // Enviar email
+  // Enviar email solo si es la primera vez (no re-enviar en runs manuales repetidos)
+  if (!alreadySent) {
   const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 465,
@@ -322,6 +322,7 @@ export async function POST(req: NextRequest) {
     subject,
     html,
   })
+  } // fin if (!alreadySent)
 
   return NextResponse.json({
     ok: true,
@@ -329,5 +330,6 @@ export async function POST(req: NextRequest) {
     projectsReviewed: projectReviews.length,
     totalImages: images.length,
     reviews: projectReviews,
+    emailSent: !alreadySent,
   })
 }
