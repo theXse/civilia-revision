@@ -34,33 +34,6 @@ interface ProjectReview {
   imageCount: number
 }
 
-// Convierte una URL de imagen a base64 para la API de Claude
-async function fetchImageAsBase64(url: string): Promise<{ data: string; mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' } | null> {
-  try {
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 20000) // 20s timeout por imagen
-    const res = await fetch(url, { cache: 'no-store', signal: controller.signal })
-    clearTimeout(timeout)
-    if (!res.ok) return null
-
-    const contentType = res.headers.get('content-type') || 'image/jpeg'
-    const rawType = contentType.split(';')[0].trim().toLowerCase()
-
-    // Normalizar tipos MIME comunes
-    let mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif'
-    if (rawType === 'image/jpg' || rawType === 'image/jpeg') mediaType = 'image/jpeg'
-    else if (rawType === 'image/png') mediaType = 'image/png'
-    else if (rawType === 'image/webp') mediaType = 'image/webp'
-    else if (rawType === 'image/gif') mediaType = 'image/gif'
-    else mediaType = 'image/jpeg' // fallback para tipos desconocidos
-
-    const buffer = await res.arrayBuffer()
-    const data = Buffer.from(buffer).toString('base64')
-    return { data, mediaType }
-  } catch {
-    return null
-  }
-}
 
 // Analiza un batch de imágenes de un proyecto con Claude vision
 async function reviewProjectImages(
@@ -87,21 +60,15 @@ async function reviewProjectImages(
     const imageLabels: string[] = []
 
     for (const img of batch) {
-      const base64 = await fetchImageAsBase64(img.url)
-      if (!base64) {
-        console.warn(`[review-images] No se pudo cargar imagen: ${img.name} (${img.url})`)
-        continue
-      }
-
       const deliveryName = deliveryNames[img.delivery_id] || 'Sin categoría'
       imageLabels.push(`[${deliveryName} / ${img.name}]`)
 
+      // Usar URL directamente — Claude descarga la imagen desde Supabase Storage
       imageContents.push({
         type: 'image',
         source: {
-          type: 'base64',
-          media_type: base64.mediaType,
-          data: base64.data,
+          type: 'url',
+          url: img.url,
         },
       })
     }
