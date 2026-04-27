@@ -30,6 +30,17 @@ function DropboxIcon({ dimmed }: { dimmed?: boolean }) {
   )
 }
 
+interface ProjectReview {
+  projectName: string
+  issues: string[]
+  imageCount: number
+}
+
+interface ReviewModal {
+  region: string
+  reviews: ProjectReview[]
+}
+
 export default function Home() {
   const [projects, setProjects] = useState<Project[]>([])
   const [regions, setRegions] = useState<Region[]>([])
@@ -40,6 +51,8 @@ export default function Home() {
   const [showHistory, setShowHistory] = useState(false)
   const [editingRegion, setEditingRegion] = useState<string | null>(null)
   const [urlInputs, setUrlInputs] = useState<Record<string, { drive: string; dropbox: string; delivery: string }>>({})
+  const [reviewingRegion, setReviewingRegion] = useState<string | null>(null)
+  const [reviewModal, setReviewModal] = useState<ReviewModal | null>(null)
 
   useEffect(() => {
     Promise.all([
@@ -157,6 +170,27 @@ export default function Home() {
     setEditingRegion(null)
   }
 
+  async function reviewRegion(region: string) {
+    setReviewingRegion(region)
+    try {
+      const res = await fetch('/api/review-images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ region }),
+      })
+      const data = await res.json()
+      if (data.reviews) {
+        setReviewModal({ region, reviews: data.reviews })
+      } else {
+        alert(data.reason === 'already_sent' ? 'Ya se envió la revisión este mes para esta región.' : 'No hay imágenes para revisar este mes.')
+      }
+    } catch {
+      alert('Error al conectar con el agente. Intenta de nuevo.')
+    } finally {
+      setReviewingRegion(null)
+    }
+  }
+
   function getRegion(regionName: string): Region | null {
     return regions.find(r => r.name === regionName) ?? null
   }
@@ -199,11 +233,25 @@ export default function Home() {
                 {/* Header */}
                 <div className="bg-[#4a6478] px-4 md:px-6 py-3 md:py-4 flex items-center justify-between gap-2">
                   <h2 className="text-white font-semibold text-sm md:text-base tracking-wide">{region}</h2>
-                  {regionToken && (
-                    <a href={`/r/${regionToken}`} target="_blank" className="text-xs bg-[#7ab82a] text-white px-3 py-2 rounded-lg font-medium hover:bg-[#6aa020] transition-colors whitespace-nowrap">
-                      Ver link ↗
-                    </a>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => reviewRegion(region)}
+                      disabled={reviewingRegion === region}
+                      title="Revisar láminas con IA"
+                      className="text-xs bg-violet-500 hover:bg-violet-400 disabled:opacity-60 text-white px-3 py-2 rounded-lg font-medium transition-colors whitespace-nowrap flex items-center gap-1.5"
+                    >
+                      {reviewingRegion === region ? (
+                        <><span className="animate-spin inline-block">⏳</span> Revisando...</>
+                      ) : (
+                        <>🤖 Revisar con IA</>
+                      )}
+                    </button>
+                    {regionToken && (
+                      <a href={`/r/${regionToken}`} target="_blank" className="text-xs bg-[#7ab82a] text-white px-3 py-2 rounded-lg font-medium hover:bg-[#6aa020] transition-colors whitespace-nowrap">
+                        Ver link ↗
+                      </a>
+                    )}
+                  </div>
                 </div>
 
                 {/* Cloud storage links */}
@@ -443,6 +491,56 @@ export default function Home() {
         </div>
 
       </div>
+
+      {/* Modal de revisión IA */}
+      {reviewModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+            {/* Header */}
+            <div className="bg-violet-600 px-6 py-4 rounded-t-2xl flex items-center justify-between flex-shrink-0">
+              <div>
+                <h2 className="text-white font-bold text-base">🤖 Revisión IA — {reviewModal.region}</h2>
+                <p className="text-violet-200 text-xs mt-0.5">Láminas del mes actual · Correo enviado a ximena@laruta.ai</p>
+              </div>
+              <button onClick={() => setReviewModal(null)} className="text-white hover:text-violet-200 text-xl font-bold px-2">✕</button>
+            </div>
+
+            {/* Content */}
+            <div className="overflow-y-auto p-6 space-y-6 flex-1">
+              {reviewModal.reviews.map((pr, i) => (
+                <div key={i}>
+                  <h3 className="font-semibold text-slate-700 text-sm mb-2 flex items-center gap-2">
+                    📐 {pr.projectName}
+                    <span className="text-xs text-slate-400 font-normal">{pr.imageCount} láminas</span>
+                  </h3>
+                  {pr.issues.length === 0 ? (
+                    <p className="text-green-600 text-sm bg-green-50 rounded-lg px-4 py-2">✅ Sin errores detectados</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {pr.issues.map((issue, j) => (
+                        <div key={j} className="bg-yellow-50 border-l-4 border-yellow-400 px-4 py-3 rounded-r-lg text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">
+                          {issue}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-slate-100 flex justify-end flex-shrink-0">
+              <button
+                onClick={() => setReviewModal(null)}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium px-5 py-2 rounded-lg transition-colors"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }

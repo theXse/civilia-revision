@@ -6,7 +6,7 @@ import { createClient } from '@supabase/supabase-js'
 // Vercel Pro: hasta 5 minutos para analizar todas las imágenes
 export const maxDuration = 300
 
-const REVIEW_RECIPIENTS = 'ximena@laruta.ai, rafael@laruta.ai'
+const REVIEW_RECIPIENTS = 'ximena@laruta.ai'
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 interface ImageRecord {
@@ -328,5 +328,6 @@ export async function POST(req: NextRequest) {
     region,
     projectsReviewed: projectReviews.length,
     totalImages: images.length,
+    reviews: projectReviews,
   })
 }
