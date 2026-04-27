@@ -35,11 +35,31 @@ interface ProjectReview {
 }
 
 
+// Extrae el path de storage desde una URL pública de Supabase
+function extractStoragePath(publicUrl: string): string | null {
+  const marker = '/storage/v1/object/public/images/'
+  const idx = publicUrl.indexOf(marker)
+  if (idx === -1) return null
+  // Decodificar por si ya está encodificado, luego re-encodificar limpiamente
+  return decodeURIComponent(publicUrl.slice(idx + marker.length))
+}
+
+// Genera una URL firmada (signed URL) de Supabase válida por 10 minutos
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function getSignedUrl(supabase: any, publicUrl: string): Promise<string> {
+  const path = extractStoragePath(publicUrl)
+  if (!path) return publicUrl
+  const { data } = await supabase.storage.from('images').createSignedUrl(path, 600)
+  return data?.signedUrl || publicUrl
+}
+
 // Analiza un batch de imágenes de un proyecto con Claude vision
 async function reviewProjectImages(
   projectName: string,
   images: ImageRecord[],
-  deliveries: DeliveryRecord[]
+  deliveries: DeliveryRecord[],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any
 ): Promise<string[]> {
   if (images.length === 0) return []
 
@@ -60,15 +80,17 @@ async function reviewProjectImages(
     const imageLabels: string[] = []
 
     for (const img of batch) {
+      // Generar URL firmada para garantizar acceso (evita problemas con caracteres especiales)
+      const signedUrl = await getSignedUrl(supabase, img.url)
+
       const deliveryName = deliveryNames[img.delivery_id] || 'Sin categoría'
       imageLabels.push(`[${deliveryName} / ${img.name}]`)
 
-      // Usar URL directamente — Claude descarga la imagen desde Supabase Storage
       imageContents.push({
         type: 'image',
         source: {
           type: 'url',
-          url: img.url,
+          url: signedUrl,
         },
       })
     }
@@ -266,7 +288,7 @@ export async function POST(req: NextRequest) {
     const projectImages = imagesByProject[project.id] || []
     const projectDeliveries = (deliveries as DeliveryRecord[]).filter(d => d.project_id === project.id)
 
-    const issues = await reviewProjectImages(project.name, projectImages, projectDeliveries)
+    const issues = await reviewProjectImages(project.name, projectImages, projectDeliveries, supabase)
 
     projectReviews.push({
       projectName: project.name,
