@@ -51,26 +51,40 @@ function encodeStorageUrl(url: string): string {
   }
 }
 
-// Descarga una imagen y la convierte a base64 para enviar a Claude
-async function fetchImageAsBase64(url: string): Promise<{ data: string; mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' } | null> {
-  try {
-    const cleanUrl = encodeStorageUrl(url)
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 30000) // 30s timeout
-    const res = await fetch(cleanUrl, { cache: 'no-store', signal: controller.signal })
-    clearTimeout(timeout)
-    if (!res.ok) return null
-    const rawType = (res.headers.get('content-type') || 'image/jpeg').split(';')[0].trim().toLowerCase()
-    let mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' = 'image/jpeg'
-    if (rawType === 'image/png') mediaType = 'image/png'
-    else if (rawType === 'image/webp') mediaType = 'image/webp'
-    else if (rawType === 'image/gif') mediaType = 'image/gif'
-    const buffer = await res.arrayBuffer()
-    const data = Buffer.from(buffer).toString('base64')
-    return { data, mediaType }
-  } catch {
-    return null
+// Descarga una imagen con hasta 3 intentos, con pausa entre cada uno
+async function fetchImageAsBase64(
+  url: string,
+  retries = 3
+): Promise<{ data: string; mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' } | null> {
+  const cleanUrl = encodeStorageUrl(url)
+
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 30000)
+      const res = await fetch(cleanUrl, { cache: 'no-store', signal: controller.signal })
+      clearTimeout(timeout)
+
+      if (!res.ok) {
+        if (attempt < retries) { await new Promise(r => setTimeout(r, 1000 * attempt)); continue }
+        return null
+      }
+
+      const rawType = (res.headers.get('content-type') || 'image/jpeg').split(';')[0].trim().toLowerCase()
+      let mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' = 'image/jpeg'
+      if (rawType === 'image/png') mediaType = 'image/png'
+      else if (rawType === 'image/webp') mediaType = 'image/webp'
+      else if (rawType === 'image/gif') mediaType = 'image/gif'
+
+      const buffer = await res.arrayBuffer()
+      const data = Buffer.from(buffer).toString('base64')
+      return { data, mediaType }
+    } catch {
+      if (attempt < retries) { await new Promise(r => setTimeout(r, 1000 * attempt)); continue }
+      return null
+    }
   }
+  return null
 }
 
 // Analiza un batch de imágenes de un proyecto con Claude vision
@@ -81,17 +95,17 @@ async function reviewProjectImages(
 ): Promise<string[]> {
   if (images.length === 0) return []
 
-  // Construir un mapa delivery_id → nombre
   const deliveryNames: Record<string, string> = {}
   for (const d of deliveries) deliveryNames[d.id] = d.name
 
-  // Cargar imágenes como base64 (máx 20 por llamada a Claude)
+  // Procesar en batches de 20
   const imageBatches: ImageRecord[][] = []
   for (let i = 0; i < images.length; i += 20) {
     imageBatches.push(images.slice(i, i + 20))
   }
 
   const allIssues: string[] = []
+  const failedImages: string[] = []
 
   for (const batch of imageBatches) {
     const imageContents: Anthropic.ImageBlockParam[] = []
@@ -100,7 +114,9 @@ async function reviewProjectImages(
     for (const img of batch) {
       const base64 = await fetchImageAsBase64(img.url)
       if (!base64) {
-        console.warn(`[review] imagen no cargada: ${img.name}`)
+        const deliveryName = deliveryNames[img.delivery_id] || '?'
+        failedImages.push(`${deliveryName} / ${img.name}`)
+        console.warn(`[review] no cargada tras 3 intentos: ${img.name}`)
         continue
       }
       const deliveryName = deliveryNames[img.delivery_id] || 'Sin categoría'
@@ -165,6 +181,15 @@ Responde en español.`
     } catch (err) {
       allIssues.push(`Error al analizar imágenes: ${err instanceof Error ? err.message : String(err)}`)
     }
+  }
+
+  // Si hubo imágenes que no pudieron cargarse, reportarlo como aviso
+  if (failedImages.length > 0) {
+    allIssues.push(
+      `⚠️ No se pudieron analizar ${failedImages.length} lámina(s) por error de descarga:\n` +
+      failedImages.map(n => `  • ${n}`).join('\n') +
+      `\n\nEstas láminas deben revisarse manualmente.`
+    )
   }
 
   return allIssues
