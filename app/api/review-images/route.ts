@@ -116,6 +116,9 @@ async function reviewProjectImages(
       batch.map(async img => ({ img, base64: await fetchImageAsBase64(img.url) }))
     )
 
+    // Contar láminas por delivery para numerar dentro de cada categoría
+    const deliveryCounters: Record<string, number> = {}
+
     for (const { img, base64 } of results) {
       if (!base64) {
         const deliveryName = deliveryNames[img.delivery_id] || '?'
@@ -123,7 +126,10 @@ async function reviewProjectImages(
         continue
       }
       const deliveryName = deliveryNames[img.delivery_id] || 'Sin categoría'
-      imageLabels.push(`[${deliveryName} / ${img.name}]`)
+      deliveryCounters[deliveryName] = (deliveryCounters[deliveryName] || 0) + 1
+      const laminaNum = deliveryCounters[deliveryName]
+      // Etiqueta: "Padres Universitarios — Lámina 3"
+      imageLabels.push(`${deliveryName} — Lámina ${laminaNum}`)
       imageContents.push({
         type: 'image',
         source: { type: 'base64', media_type: base64.mediaType, data: base64.data },
@@ -133,30 +139,33 @@ async function reviewProjectImages(
     if (imageContents.length === 0) continue
 
     // Armar prompt con etiquetas de imagen
-    const labelList = imageLabels.map((l, i) => `Imagen ${i + 1}: ${l}`).join('\n')
+    const labelList = imageLabels.map((l, i) => `Imagen ${i + 1}: [${l}]`).join('\n')
 
     const textPrompt = `Eres un revisor de calidad de material gráfico para una empresa inmobiliaria chilena llamada "La Ruta".
 
 Estás analizando las siguientes láminas del proyecto "${projectName}":
 ${labelList}
 
-Revisa CADA imagen buscando:
-1. Faltas de ortografía en español (tildes faltantes, palabras mal escritas)
-2. Inconsistencias de texto (precios contradictorios, datos distintos entre láminas)
-3. Errores gramaticales evidentes
-4. Inconsistencias visuales en textos (mayúsculas/minúsculas, puntuación inconsistente)
+Revisa CADA imagen leyendo TODO el texto visible y buscando:
+1. **Ortografía**: tildes faltantes, palabras mal escritas (ej: "universitarios" en vez de "universitario")
+2. **Concordancia gramatical**: género y número deben concordar (ej: "Entorno universitarios" es incorrecto, debe ser "Entorno universitario"; "espacios común" es incorrecto, debe ser "espacios comunes")
+3. **Coherencia**: el texto debe tener sentido (sujeto y predicado concordantes, frases completas)
+4. **Inconsistencias entre láminas**: precios, datos o formatos distintos entre láminas del mismo proyecto
+5. **Puntuación inconsistente**: mezcla de mayúsculas/minúsculas, bullets con/sin punto final
 
+SÉ MUY ESTRICTO con la concordancia de género y número — es el error más común.
 IMPORTANTE: Referencias a meses futuros (ej: "en mayo") son INTENCIONALES, no las reportes como error.
 
 Responde ÚNICAMENTE con un array JSON válido, sin texto adicional, con este formato exacto:
 [
-  {"n": 1, "label": "NOMBRE_DELIVERY", "errors": ["descripción error 1", "descripción error 2"]},
-  {"n": 2, "label": "NOMBRE_DELIVERY", "errors": []},
+  {"n": 1, "label": "CATEGORIA — Lámina N", "errors": ["descripción exacta del error con el texto afectado"]},
+  {"n": 2, "label": "CATEGORIA — Lámina N", "errors": []},
   ...
 ]
 
-Si no hay errores en una imagen, "errors" debe ser un array vacío [].
-Responde en español dentro del JSON.`
+El campo "label" debe ser exactamente la etiqueta que te di (ej: "Padres Universitarios — Lámina 3").
+Si no hay errores, "errors" es [].
+Responde en español.`
 
     try {
       const response = await anthropic.messages.create({
