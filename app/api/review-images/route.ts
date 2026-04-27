@@ -98,14 +98,21 @@ async function reviewProjectImages(
   const deliveryNames: Record<string, string> = {}
   for (const d of deliveries) deliveryNames[d.id] = d.name
 
+  // Ordenar imágenes por delivery para que las del mismo delivery queden juntas
+  // Esto ayuda a Claude a asociar correctamente las etiquetas con las imágenes
+  const sortedImages = [...images].sort((a, b) => a.delivery_id.localeCompare(b.delivery_id))
+
   // Procesar en batches de 20
   const imageBatches: ImageRecord[][] = []
-  for (let i = 0; i < images.length; i += 20) {
-    imageBatches.push(images.slice(i, i + 20))
+  for (let i = 0; i < sortedImages.length; i += 20) {
+    imageBatches.push(sortedImages.slice(i, i + 20))
   }
 
   const allIssues: string[] = []
   const failedImages: string[] = []
+
+  // Contadores por delivery acumulativos (no se resetean entre batches)
+  const globalDeliveryCounters: Record<string, number> = {}
 
   for (const batch of imageBatches) {
     const imageContents: Anthropic.ImageBlockParam[] = []
@@ -116,9 +123,6 @@ async function reviewProjectImages(
       batch.map(async img => ({ img, base64: await fetchImageAsBase64(img.url) }))
     )
 
-    // Contar láminas por delivery para numerar dentro de cada categoría
-    const deliveryCounters: Record<string, number> = {}
-
     for (const { img, base64 } of results) {
       if (!base64) {
         const deliveryName = deliveryNames[img.delivery_id] || '?'
@@ -126,8 +130,8 @@ async function reviewProjectImages(
         continue
       }
       const deliveryName = deliveryNames[img.delivery_id] || 'Sin categoría'
-      deliveryCounters[deliveryName] = (deliveryCounters[deliveryName] || 0) + 1
-      const laminaNum = deliveryCounters[deliveryName]
+      globalDeliveryCounters[deliveryName] = (globalDeliveryCounters[deliveryName] || 0) + 1
+      const laminaNum = globalDeliveryCounters[deliveryName]
       // Etiqueta: "Padres Universitarios — Lámina 3"
       imageLabels.push(`${deliveryName} — Lámina ${laminaNum}`)
       imageContents.push({
