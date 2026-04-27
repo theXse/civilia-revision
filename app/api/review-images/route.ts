@@ -35,31 +35,49 @@ interface ProjectReview {
 }
 
 
-// Extrae el path de storage desde una URL pública de Supabase
-function extractStoragePath(publicUrl: string): string | null {
-  const marker = '/storage/v1/object/public/images/'
-  const idx = publicUrl.indexOf(marker)
-  if (idx === -1) return null
-  // Decodificar por si ya está encodificado, luego re-encodificar limpiamente
-  return decodeURIComponent(publicUrl.slice(idx + marker.length))
+// Encodifica correctamente una URL de Supabase Storage
+// Maneja nombres de archivo con espacios y caracteres especiales
+function encodeStorageUrl(url: string): string {
+  try {
+    const urlObj = new URL(url)
+    // Re-encodificar cada segmento del path individualmente
+    urlObj.pathname = urlObj.pathname
+      .split('/')
+      .map(seg => encodeURIComponent(decodeURIComponent(seg)))
+      .join('/')
+    return urlObj.toString()
+  } catch {
+    return url
+  }
 }
 
-// Genera una URL firmada (signed URL) de Supabase válida por 10 minutos
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getSignedUrl(supabase: any, publicUrl: string): Promise<string> {
-  const path = extractStoragePath(publicUrl)
-  if (!path) return publicUrl
-  const { data } = await supabase.storage.from('images').createSignedUrl(path, 600)
-  return data?.signedUrl || publicUrl
+// Descarga una imagen y la convierte a base64 para enviar a Claude
+async function fetchImageAsBase64(url: string): Promise<{ data: string; mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' } | null> {
+  try {
+    const cleanUrl = encodeStorageUrl(url)
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 30000) // 30s timeout
+    const res = await fetch(cleanUrl, { cache: 'no-store', signal: controller.signal })
+    clearTimeout(timeout)
+    if (!res.ok) return null
+    const rawType = (res.headers.get('content-type') || 'image/jpeg').split(';')[0].trim().toLowerCase()
+    let mediaType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' = 'image/jpeg'
+    if (rawType === 'image/png') mediaType = 'image/png'
+    else if (rawType === 'image/webp') mediaType = 'image/webp'
+    else if (rawType === 'image/gif') mediaType = 'image/gif'
+    const buffer = await res.arrayBuffer()
+    const data = Buffer.from(buffer).toString('base64')
+    return { data, mediaType }
+  } catch {
+    return null
+  }
 }
 
 // Analiza un batch de imágenes de un proyecto con Claude vision
 async function reviewProjectImages(
   projectName: string,
   images: ImageRecord[],
-  deliveries: DeliveryRecord[],
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any
+  deliveries: DeliveryRecord[]
 ): Promise<string[]> {
   if (images.length === 0) return []
 
@@ -80,18 +98,16 @@ async function reviewProjectImages(
     const imageLabels: string[] = []
 
     for (const img of batch) {
-      // Generar URL firmada para garantizar acceso (evita problemas con caracteres especiales)
-      const signedUrl = await getSignedUrl(supabase, img.url)
-
+      const base64 = await fetchImageAsBase64(img.url)
+      if (!base64) {
+        console.warn(`[review] imagen no cargada: ${img.name}`)
+        continue
+      }
       const deliveryName = deliveryNames[img.delivery_id] || 'Sin categoría'
       imageLabels.push(`[${deliveryName} / ${img.name}]`)
-
       imageContents.push({
         type: 'image',
-        source: {
-          type: 'url',
-          url: signedUrl,
-        },
+        source: { type: 'base64', media_type: base64.mediaType, data: base64.data },
       })
     }
 
@@ -288,7 +304,7 @@ export async function POST(req: NextRequest) {
     const projectImages = imagesByProject[project.id] || []
     const projectDeliveries = (deliveries as DeliveryRecord[]).filter(d => d.project_id === project.id)
 
-    const issues = await reviewProjectImages(project.name, projectImages, projectDeliveries, supabase)
+    const issues = await reviewProjectImages(project.name, projectImages, projectDeliveries)
 
     projectReviews.push({
       projectName: project.name,
