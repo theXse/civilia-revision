@@ -17,3 +17,13 @@ INSERT INTO regions (name, client_token) VALUES
   ('Santiago',   'santiago-rev-4m9p'),
   ('Valdivia',   'valdivia-rev-2n6w'),
   ('Concepción', 'concepcion-rev-8q1f');
+
+-- Tabla para registrar revisiones de IA enviadas (evita duplicados por mes/región)
+CREATE TABLE IF NOT EXISTS ai_reviews (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  region text NOT NULL,
+  month text NOT NULL,  -- formato 'YYYY-MM', ej: '2026-05'
+  sent_at timestamptz DEFAULT now(),
+  projects_reviewed jsonb,  -- lista de proyectos revisados
+  UNIQUE(region, month)
+);

@@ -157,7 +157,16 @@ export default function AdminPage() {
     if (!newDelivery.trim() || !project) return
     const { data, error: insertError } = await supabase.from('deliveries').insert({ project_id: project.id, name: newDelivery }).select().single()
     if (insertError) { alert('Error al crear categoría: ' + insertError.message); return }
-    if (data) { setDeliveries([data, ...deliveries]); setNewDelivery('') }
+    if (data) {
+      setDeliveries([data, ...deliveries])
+      setNewDelivery('')
+      // Verificar si se completó todo el material de la región → dispara revisión IA automática
+      fetch('/api/check-completion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ region: project.region }),
+      }).catch(() => {})
+    }
   }
 
   async function deleteDelivery(deliveryId: string) {
