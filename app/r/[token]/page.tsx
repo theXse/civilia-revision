@@ -112,7 +112,7 @@ export default function ClientRegionPage() {
   }
 
   async function loadProjects(regionName: string) {
-    const { data } = await supabase.from('projects').select('*').eq('region', regionName).order('name')
+    const { data } = await supabase.from('projects').select('*').eq('region', regionName).eq('archived', false).order('name')
     setProjects(data || [])
   }
 
