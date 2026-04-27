@@ -111,12 +111,15 @@ async function reviewProjectImages(
     const imageContents: Anthropic.ImageBlockParam[] = []
     const imageLabels: string[] = []
 
-    for (const img of batch) {
-      const base64 = await fetchImageAsBase64(img.url)
+    // Descargar todas las imágenes del batch en paralelo
+    const results = await Promise.all(
+      batch.map(async img => ({ img, base64: await fetchImageAsBase64(img.url) }))
+    )
+
+    for (const { img, base64 } of results) {
       if (!base64) {
         const deliveryName = deliveryNames[img.delivery_id] || '?'
         failedImages.push(`${deliveryName} / ${img.name}`)
-        console.warn(`[review] no cargada tras 3 intentos: ${img.name}`)
         continue
       }
       const deliveryName = deliveryNames[img.delivery_id] || 'Sin categoría'
@@ -157,9 +160,8 @@ Responde en español.`
 
     try {
       const response = await anthropic.messages.create({
-        model: 'claude-opus-4-7',
+        model: 'claude-sonnet-4-6',
         max_tokens: 8192,
-        thinking: { type: 'adaptive' },
         messages: [
           {
             role: 'user',
