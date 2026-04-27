@@ -87,7 +87,107 @@ async function fetchImageAsBase64(
   return null
 }
 
-// Analiza un batch de imágenes de un proyecto con Claude vision
+// Analiza las imágenes de UN delivery con Claude vision
+// Cada delivery se procesa en su propia llamada para que los números de lámina sean exactos
+async function reviewDeliveryImages(
+  projectName: string,
+  deliveryName: string,
+  images: ImageRecord[]
+): Promise<{ withErrors: { n: number; label: string; errors: string[] }[]; withoutErrors: { n: number; label: string; errors: string[] }[]; failed: string[] }> {
+  const failed: string[] = []
+
+  // Descargar todas las imágenes en paralelo
+  const results = await Promise.all(
+    images.map(async (img, idx) => ({ img, idx: idx + 1, base64: await fetchImageAsBase64(img.url) }))
+  )
+
+  const imageContents: Anthropic.ImageBlockParam[] = []
+  const labelList: string[] = []
+
+  for (const { img, idx, base64 } of results) {
+    if (!base64) {
+      failed.push(`${deliveryName} / ${img.name}`)
+      continue
+    }
+    // Etiqueta simple: "Lámina 1", "Lámina 2"… Claude solo ve imágenes de este delivery
+    labelList.push(`Lámina ${idx}`)
+    imageContents.push({
+      type: 'image',
+      source: { type: 'base64', media_type: base64.mediaType, data: base64.data },
+    })
+  }
+
+  if (imageContents.length === 0) {
+    return { withErrors: [], withoutErrors: [], failed }
+  }
+
+  const labelListText = labelList.map((l, i) => `Imagen ${i + 1}: [${l}]`).join('\n')
+
+  const textPrompt = `Eres un revisor de calidad de material gráfico para una empresa inmobiliaria chilena llamada "La Ruta".
+
+Estás analizando láminas de la categoría "${deliveryName}" del proyecto "${projectName}":
+${labelListText}
+
+IMPORTANTE: La imagen 1 corresponde a Lámina 1, imagen 2 a Lámina 2, y así sucesivamente.
+
+Revisa CADA imagen leyendo TODO el texto visible y buscando:
+1. **Ortografía**: tildes faltantes, palabras mal escritas
+2. **Concordancia gramatical**: género y número deben concordar (ej: "Entorno universitarios" → error, debe ser "Entorno universitario"; "espacios común" → error, debe ser "espacios comunes"; "vida universitarios" → error, debe ser "vida universitaria")
+3. **Coherencia**: el texto debe tener sentido (frases completas, sujeto y predicado concordantes)
+4. **Puntuación inconsistente**: mezcla de mayúsculas/minúsculas, bullets con/sin punto final
+
+SÉ MUY ESTRICTO con la concordancia de género y número — es el error más común.
+IMPORTANTE: Referencias a meses futuros (ej: "en mayo", "en junio") son INTENCIONALES, no las reportes como error.
+
+Responde ÚNICAMENTE con un array JSON válido, sin texto adicional:
+[
+  {"n": 1, "label": "${deliveryName} — Lámina 1", "errors": ["descripción exacta del error con el texto afectado"]},
+  {"n": 2, "label": "${deliveryName} — Lámina 2", "errors": []},
+  ...
+]
+
+El campo "label" sigue SIEMPRE el formato "${deliveryName} — Lámina N".
+Si no hay errores en una imagen, "errors" es [].
+Responde en español.`
+
+  try {
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 4096,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            ...imageContents,
+            { type: 'text', text: textPrompt },
+          ],
+        },
+      ],
+    })
+
+    const rawText = response.content
+      .filter(b => b.type === 'text')
+      .map(b => ('text' in b ? b.text : ''))
+      .join('').trim()
+
+    const jsonMatch = rawText.match(/\[[\s\S]*\]/)
+    if (jsonMatch) {
+      const parsed: { n: number; label: string; errors: string[] }[] = JSON.parse(jsonMatch[0])
+      return {
+        withErrors: parsed.filter(item => item.errors.length > 0),
+        withoutErrors: parsed.filter(item => item.errors.length === 0),
+        failed,
+      }
+    }
+  } catch {
+    // Si falla silenciosamente, devolver vacío con las imágenes como fallidas
+    for (const img of images) failed.push(`${deliveryName} / ${img.name}`)
+  }
+
+  return { withErrors: [], withoutErrors: [], failed }
+}
+
+// Analiza todas las imágenes de un proyecto, delivery por delivery
 async function reviewProjectImages(
   projectName: string,
   images: ImageRecord[],
@@ -95,130 +195,46 @@ async function reviewProjectImages(
 ): Promise<string[]> {
   if (images.length === 0) return []
 
-  const deliveryNames: Record<string, string> = {}
-  for (const d of deliveries) deliveryNames[d.id] = d.name
+  // Agrupar imágenes por delivery
+  const imagesByDelivery: Record<string, ImageRecord[]> = {}
+  for (const img of images) {
+    if (!imagesByDelivery[img.delivery_id]) imagesByDelivery[img.delivery_id] = []
+    imagesByDelivery[img.delivery_id].push(img)
+  }
 
-  // Ordenar imágenes por delivery para que las del mismo delivery queden juntas
-  // Esto ayuda a Claude a asociar correctamente las etiquetas con las imágenes
-  const sortedImages = [...images].sort((a, b) => a.delivery_id.localeCompare(b.delivery_id))
+  const allFailedImages: string[] = []
 
-  // Procesar en batches de 20
-  const imageBatches: ImageRecord[][] = []
-  for (let i = 0; i < sortedImages.length; i += 20) {
-    imageBatches.push(sortedImages.slice(i, i + 20))
+  // Analizar todos los deliveries en paralelo (más rápido que secuencial)
+  const deliveryResults = await Promise.all(
+    deliveries
+      .filter(d => imagesByDelivery[d.id]?.length > 0)
+      .map(async d => {
+        const result = await reviewDeliveryImages(projectName, d.name, imagesByDelivery[d.id])
+        return { deliveryName: d.name, ...result }
+      })
+  )
+
+  // Acumular resultados de todos los deliveries en un único issue estructurado
+  const allWithErrors: { n: number; label: string; errors: string[] }[] = []
+  const allWithoutErrors: { n: number; label: string; errors: string[] }[] = []
+
+  for (const result of deliveryResults) {
+    allWithErrors.push(...result.withErrors)
+    allWithoutErrors.push(...result.withoutErrors)
+    allFailedImages.push(...result.failed)
   }
 
   const allIssues: string[] = []
-  const failedImages: string[] = []
 
-  // Contadores por delivery acumulativos (no se resetean entre batches)
-  const globalDeliveryCounters: Record<string, number> = {}
-
-  for (const batch of imageBatches) {
-    const imageContents: Anthropic.ImageBlockParam[] = []
-    const imageLabels: string[] = []
-
-    // Descargar todas las imágenes del batch en paralelo
-    const results = await Promise.all(
-      batch.map(async img => ({ img, base64: await fetchImageAsBase64(img.url) }))
-    )
-
-    for (const { img, base64 } of results) {
-      if (!base64) {
-        const deliveryName = deliveryNames[img.delivery_id] || '?'
-        failedImages.push(`${deliveryName} / ${img.name}`)
-        continue
-      }
-      const deliveryName = deliveryNames[img.delivery_id] || 'Sin categoría'
-      globalDeliveryCounters[deliveryName] = (globalDeliveryCounters[deliveryName] || 0) + 1
-      const laminaNum = globalDeliveryCounters[deliveryName]
-      // Etiqueta: "Padres Universitarios — Lámina 3"
-      imageLabels.push(`${deliveryName} — Lámina ${laminaNum}`)
-      imageContents.push({
-        type: 'image',
-        source: { type: 'base64', media_type: base64.mediaType, data: base64.data },
-      })
-    }
-
-    if (imageContents.length === 0) continue
-
-    // Armar prompt con etiquetas de imagen
-    const labelList = imageLabels.map((l, i) => `Imagen ${i + 1}: [${l}]`).join('\n')
-
-    const textPrompt = `Eres un revisor de calidad de material gráfico para una empresa inmobiliaria chilena llamada "La Ruta".
-
-Estás analizando las siguientes láminas del proyecto "${projectName}":
-${labelList}
-
-Revisa CADA imagen leyendo TODO el texto visible y buscando:
-1. **Ortografía**: tildes faltantes, palabras mal escritas (ej: "universitarios" en vez de "universitario")
-2. **Concordancia gramatical**: género y número deben concordar (ej: "Entorno universitarios" es incorrecto, debe ser "Entorno universitario"; "espacios común" es incorrecto, debe ser "espacios comunes")
-3. **Coherencia**: el texto debe tener sentido (sujeto y predicado concordantes, frases completas)
-4. **Inconsistencias entre láminas**: precios, datos o formatos distintos entre láminas del mismo proyecto
-5. **Puntuación inconsistente**: mezcla de mayúsculas/minúsculas, bullets con/sin punto final
-
-SÉ MUY ESTRICTO con la concordancia de género y número — es el error más común.
-IMPORTANTE: Referencias a meses futuros (ej: "en mayo") son INTENCIONALES, no las reportes como error.
-
-Responde ÚNICAMENTE con un array JSON válido, sin texto adicional, con este formato exacto:
-[
-  {"n": 1, "label": "CATEGORIA — Lámina N", "errors": ["descripción exacta del error con el texto afectado"]},
-  {"n": 2, "label": "CATEGORIA — Lámina N", "errors": []},
-  ...
-]
-
-El campo "label" debe ser exactamente la etiqueta que te di (ej: "Padres Universitarios — Lámina 3").
-Si no hay errores, "errors" es [].
-Responde en español.`
-
-    try {
-      const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 8192,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              ...imageContents,
-              { type: 'text', text: textPrompt },
-            ],
-          },
-        ],
-      })
-
-      const rawText = response.content
-        .filter(b => b.type === 'text')
-        .map(b => ('text' in b ? b.text : ''))
-        .join('').trim()
-
-      // Parsear el JSON estructurado que devuelve Claude
-      try {
-        const jsonMatch = rawText.match(/\[[\s\S]*\]/)
-        if (jsonMatch) {
-          const parsed: { n: number; label: string; errors: string[] }[] = JSON.parse(jsonMatch[0])
-          const withErrors = parsed.filter(item => item.errors.length > 0)
-          const withoutErrors = parsed.filter(item => item.errors.length === 0)
-
-          if (withErrors.length > 0 || withoutErrors.length > 0) {
-            allIssues.push(JSON.stringify({ withErrors, withoutErrors }))
-          }
-        } else {
-          // Fallback: guardar como texto plano si no viene JSON
-          if (rawText) allIssues.push(rawText)
-        }
-      } catch {
-        if (rawText) allIssues.push(rawText)
-      }
-    } catch (err) {
-      allIssues.push(`Error al analizar imágenes: ${err instanceof Error ? err.message : String(err)}`)
-    }
+  if (allWithErrors.length > 0 || allWithoutErrors.length > 0) {
+    allIssues.push(JSON.stringify({ withErrors: allWithErrors, withoutErrors: allWithoutErrors }))
   }
 
   // Si hubo imágenes que no pudieron cargarse, reportarlo como aviso
-  if (failedImages.length > 0) {
+  if (allFailedImages.length > 0) {
     allIssues.push(
-      `⚠️ No se pudieron analizar ${failedImages.length} lámina(s) por error de descarga:\n` +
-      failedImages.map(n => `  • ${n}`).join('\n') +
+      `⚠️ No se pudieron analizar ${allFailedImages.length} lámina(s) por error de descarga:\n` +
+      allFailedImages.map(n => `  • ${n}`).join('\n') +
       `\n\nEstas láminas deben revisarse manualmente.`
     )
   }
