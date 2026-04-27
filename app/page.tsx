@@ -507,25 +507,84 @@ export default function Home() {
 
             {/* Content */}
             <div className="overflow-y-auto p-6 space-y-6 flex-1">
-              {reviewModal.reviews.map((pr, i) => (
-                <div key={i}>
-                  <h3 className="font-semibold text-slate-700 text-sm mb-2 flex items-center gap-2">
-                    📐 {pr.projectName}
-                    <span className="text-xs text-slate-400 font-normal">{pr.imageCount} láminas</span>
-                  </h3>
-                  {pr.issues.length === 0 ? (
-                    <p className="text-green-600 text-sm bg-green-50 rounded-lg px-4 py-2">✅ Sin errores detectados</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {pr.issues.map((issue, j) => (
-                        <div key={j} className="bg-yellow-50 border-l-4 border-yellow-400 px-4 py-3 rounded-r-lg text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">
-                          {issue}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
+              {reviewModal.reviews.map((pr, i) => {
+                // Intentar parsear issues estructurados (JSON)
+                type StructuredItem = { n: number; label: string; errors: string[] }
+                let withErrors: StructuredItem[] = []
+                let withoutErrors: StructuredItem[] = []
+                let plainIssues: string[] = []
+                let isStructured = false
+
+                if (pr.issues.length > 0) {
+                  try {
+                    const parsed = JSON.parse(pr.issues[0])
+                    if (parsed.withErrors !== undefined) {
+                      withErrors = parsed.withErrors
+                      withoutErrors = parsed.withoutErrors
+                      // Combinar issues de múltiples batches si hay más de uno
+                      for (const extra of pr.issues.slice(1)) {
+                        try {
+                          const p2 = JSON.parse(extra)
+                          withErrors = [...withErrors, ...p2.withErrors]
+                          withoutErrors = [...withoutErrors, ...p2.withoutErrors]
+                        } catch { plainIssues.push(extra) }
+                      }
+                      isStructured = true
+                    }
+                  } catch { plainIssues = pr.issues }
+                }
+
+                return (
+                  <div key={i}>
+                    <h3 className="font-semibold text-slate-700 text-sm mb-3 flex items-center gap-2">
+                      📐 {pr.projectName}
+                      <span className="text-xs text-slate-400 font-normal">{pr.imageCount} láminas</span>
+                      {isStructured && withErrors.length === 0 && (
+                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">✓ Sin errores</span>
+                      )}
+                    </h3>
+
+                    {isStructured ? (
+                      <div className="space-y-2">
+                        {/* Imágenes CON errores — punto rojo */}
+                        {withErrors.map((item, j) => (
+                          <div key={j} className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
+                              <span className="text-xs font-semibold text-red-700">Imagen {item.n} — {item.label}</span>
+                            </div>
+                            <ul className="space-y-1 pl-4">
+                              {item.errors.map((err, k) => (
+                                <li key={k} className="text-sm text-slate-700 leading-relaxed">• {err}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))}
+
+                        {/* Imágenes SIN errores — agrupadas en una línea */}
+                        {withoutErrors.length > 0 && (
+                          <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-2.5 flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
+                            <span className="text-sm text-green-700">
+                              <strong>Sin errores:</strong> láminas {withoutErrors.map(item => `${item.n} (${item.label})`).join(', ')}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      /* Fallback texto plano */
+                      <div className="space-y-2">
+                        {plainIssues.length === 0
+                          ? <p className="text-green-600 text-sm bg-green-50 rounded-lg px-4 py-2">✅ Sin errores detectados</p>
+                          : plainIssues.map((issue, j) => (
+                              <div key={j} className="bg-yellow-50 border-l-4 border-yellow-400 px-4 py-3 rounded-r-lg text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{issue}</div>
+                            ))
+                        }
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
 
             {/* Footer */}

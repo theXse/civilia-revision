@@ -140,23 +140,23 @@ async function reviewProjectImages(
 Estás analizando las siguientes láminas del proyecto "${projectName}":
 ${labelList}
 
-Por favor revisa CADA imagen y reporta:
-1. **Faltas de ortografía** en español (ej: tildes faltantes, palabras mal escritas)
-2. **Inconsistencias de texto** (ej: precios contradictorios, fechas incorrectas, datos distintos entre láminas del mismo proyecto)
-3. **Errores gramaticales** evidentes
-4. **Problemas de consistencia visual** en los textos (ej: mezcla de mayúsculas/minúsculas, puntuación inconsistente)
+Revisa CADA imagen buscando:
+1. Faltas de ortografía en español (tildes faltantes, palabras mal escritas)
+2. Inconsistencias de texto (precios contradictorios, datos distintos entre láminas)
+3. Errores gramaticales evidentes
+4. Inconsistencias visuales en textos (mayúsculas/minúsculas, puntuación inconsistente)
 
-IMPORTANTE: El contenido puede hacer referencias a meses futuros (ej: "en mayo") porque las láminas se preparan con anticipación al 1° de cada mes. Esto es INTENCIONAL y NO es un error.
+IMPORTANTE: Referencias a meses futuros (ej: "en mayo") son INTENCIONALES, no las reportes como error.
 
-Para cada error encontrado, indica:
-- Número de imagen
-- Categoría del error (ortografía / inconsistencia / gramática / otro)
-- Descripción específica del error y el texto afectado
+Responde ÚNICAMENTE con un array JSON válido, sin texto adicional, con este formato exacto:
+[
+  {"n": 1, "label": "NOMBRE_DELIVERY", "errors": ["descripción error 1", "descripción error 2"]},
+  {"n": 2, "label": "NOMBRE_DELIVERY", "errors": []},
+  ...
+]
 
-Si no encuentras ningún error en una imagen, indícalo brevemente.
-Si no hay NINGÚN error en ninguna imagen, responde solo: "Sin errores detectados."
-
-Responde en español.`
+Si no hay errores en una imagen, "errors" debe ser un array vacío [].
+Responde en español dentro del JSON.`
 
     try {
       const response = await anthropic.messages.create({
@@ -173,12 +173,28 @@ Responde en español.`
         ],
       })
 
-      // Extraer solo los bloques de texto de la respuesta (no los thinking blocks)
-      const textBlocks = response.content.filter(b => b.type === 'text')
-      const reviewText = textBlocks.map(b => ('text' in b ? b.text : '')).join('\n').trim()
+      const rawText = response.content
+        .filter(b => b.type === 'text')
+        .map(b => ('text' in b ? b.text : ''))
+        .join('').trim()
 
-      if (reviewText && reviewText !== 'Sin errores detectados.') {
-        allIssues.push(reviewText)
+      // Parsear el JSON estructurado que devuelve Claude
+      try {
+        const jsonMatch = rawText.match(/\[[\s\S]*\]/)
+        if (jsonMatch) {
+          const parsed: { n: number; label: string; errors: string[] }[] = JSON.parse(jsonMatch[0])
+          const withErrors = parsed.filter(item => item.errors.length > 0)
+          const withoutErrors = parsed.filter(item => item.errors.length === 0)
+
+          if (withErrors.length > 0 || withoutErrors.length > 0) {
+            allIssues.push(JSON.stringify({ withErrors, withoutErrors }))
+          }
+        } else {
+          // Fallback: guardar como texto plano si no viene JSON
+          if (rawText) allIssues.push(rawText)
+        }
+      } catch {
+        if (rawText) allIssues.push(rawText)
       }
     } catch (err) {
       allIssues.push(`Error al analizar imágenes: ${err instanceof Error ? err.message : String(err)}`)
