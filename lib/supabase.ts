@@ -72,6 +72,7 @@ export type Image = {
   published: boolean
   on_instagram: boolean
   sort_order: number
+  tracking_code: string | null
   created_at: string
 }
 

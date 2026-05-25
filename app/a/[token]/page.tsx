@@ -723,6 +723,18 @@ export default function AdminPage() {
               <p className="text-sm font-semibold text-white truncate flex-1 mr-2">Lámina {images.findIndex(i => i.id === selectedImage.id) + 1}</p>
               <button onClick={() => setSelectedImage(null)} className="text-slate-400 hover:text-white p-1 flex-shrink-0">✕</button>
             </div>
+            {selectedImage.tracking_code && (
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(selectedImage.tracking_code!)
+                }}
+                title="Copiar código de tracking (úsalo como nombre del creative en Meta/Google Ads)"
+                className="mb-3 w-full flex items-center justify-between gap-2 text-xs font-mono bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-xl transition-colors border border-slate-700"
+              >
+                <span className="truncate">{selectedImage.tracking_code}</span>
+                <span className="text-slate-400 flex-shrink-0">📋 copiar</span>
+              </button>
+            )}
             <img
               src={thumbUrl(selectedImage.url, 'panel')}
               alt={selectedImage.name}
