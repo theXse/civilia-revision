@@ -65,7 +65,7 @@ export function buildLinkApprovalEmail(region: string, items: NotificationItem[]
       </a>` : ''}
       ${item.approval_token ? `
       <br>
-      <a href="${baseUrl}/aprobar/${item.approval_token}" style="display:inline-block;margin-top:${item.facebook_link ? '8px' : '0'};background:#16a34a;color:white;text-decoration:none;padding:12px 28px;border-radius:8px;font-size:14px;font-weight:700">
+      <a href="${baseUrl}/api/approve/${item.approval_token}" style="display:inline-block;margin-top:${item.facebook_link ? '8px' : '0'};background:#16a34a;color:white;text-decoration:none;padding:12px 28px;border-radius:8px;font-size:14px;font-weight:700">
         ✓ Aprobar publicación
       </a>` : ''}
     </div>

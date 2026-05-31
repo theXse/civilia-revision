@@ -26,7 +26,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
     const transporter = nodemailer.createTransport({ host: 'smtp.gmail.com', port: 465, secure: true, auth: { user, pass } })
     const { subject, html } = buildApprovalConfirmEmail(project?.name, delivery.name, project?.region)
     try {
-      await transporter.sendMail({ from: `"La Ruta" <${user}>`, to: 'ximena@laruta.ia, erika@laruta.ai', subject, html })
+      await transporter.sendMail({ from: `"La Ruta" <${user}>`, to: 'ximena@laruta.ai, erika@laruta.ai', subject, html })
     } catch (e) {
       console.error('Error sending approval email:', e)
     }

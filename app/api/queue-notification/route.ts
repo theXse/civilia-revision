@@ -40,7 +40,7 @@ async function processOverdueBatches() {
           <p style="margin:0 0 4px;font-weight:bold;color:#1e293b">${item.project_name}</p>
           <p style="margin:0 0 12px;font-size:13px;color:#64748b">${item.delivery_name}</p>
           ${item.facebook_link ? `<p style="margin:0 0 12px"><a href="${item.facebook_link}" style="color:#1877f2;font-size:13px">Ver en Facebook →</a></p>` : ''}
-          ${item.approval_token ? `<a href="${baseUrl}/aprobar/${item.approval_token}" style="display:inline-block;background:#7c3aed;color:white;padding:8px 16px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600">✓ Aprobar campaña</a>` : ''}
+          ${item.approval_token ? `<a href="${baseUrl}/api/approve/${item.approval_token}" style="display:inline-block;background:#7c3aed;color:white;padding:8px 16px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600">✓ Aprobar campaña</a>` : ''}
         </div>
       `).join('')
       html = `
