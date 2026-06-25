@@ -439,14 +439,14 @@ export default function ClientRegionPage() {
           <Image src="/logo.png" alt="Civilia" width={90} height={28} className="object-contain" />
         </div>
         <div className="hidden md:block h-8 w-px bg-slate-600" />
-        <div className="flex-1">
-          <h1 className="font-bold text-white text-sm md:text-lg leading-tight">
+        <div className="flex-1 min-w-0">
+          <h1 className="font-bold text-white text-sm md:text-lg leading-tight truncate">
             {selectedProject ? selectedProject.name : region?.name}
           </h1>
           <p className="text-slate-400 text-xs hidden md:block">Portal de Revisión</p>
         </div>
         {selectedProject && (
-          <button onClick={goBack} className="text-xs bg-slate-700 text-slate-200 px-3 py-2 rounded-lg hover:bg-slate-600 transition-colors">← Volver</button>
+          <button onClick={goBack} className="flex-shrink-0 text-xs bg-slate-700 text-slate-200 px-3 py-2 rounded-lg hover:bg-slate-600 transition-colors">← Volver</button>
         )}
       </header>
 
@@ -460,29 +460,30 @@ export default function ClientRegionPage() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
                 {projects.map(p => (
-                  <div key={p.id} className="bg-[#15202b] rounded-2xl overflow-hidden shadow-lg border border-slate-700">
-                    <div className="bg-[#4a6478] px-4 md:px-5 py-3 flex items-center justify-between gap-2">
-                      <h3 className="text-white font-semibold text-sm">{p.name}</h3>
-                      <div className="flex items-center gap-1.5">
+                  <div
+                    key={p.id}
+                    onClick={() => selectProject(p)}
+                    className="bg-[#15202b] rounded-2xl overflow-hidden shadow-lg border border-slate-700 cursor-pointer hover:border-[#7ab82a] active:scale-[0.99] transition-all"
+                  >
+                    <div className="bg-[#4a6478] px-4 md:px-5 py-3 flex items-start justify-between gap-2">
+                      <h3 className="text-white font-bold text-base leading-snug break-words min-w-0 flex-1">{p.name}</h3>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
                         {region?.drive_url && (
-                          <a href={region.drive_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="flex items-center gap-1 bg-white/10 hover:bg-white/20 text-white text-xs px-2 py-1 rounded-lg transition-colors" title="Abrir Google Drive">
+                          <a href={region.drive_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="flex items-center gap-1 bg-white/10 hover:bg-white/20 text-white text-xs px-2 py-1.5 rounded-lg transition-colors" title="Abrir Google Drive">
                             <DriveIcon />
                           </a>
                         )}
                         {region?.dropbox_url && (
-                          <a href={region.dropbox_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="flex items-center gap-1 bg-white/10 hover:bg-white/20 text-white text-xs px-2 py-1 rounded-lg transition-colors" title="Abrir Dropbox">
+                          <a href={region.dropbox_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="flex items-center gap-1 bg-white/10 hover:bg-white/20 text-white text-xs px-2 py-1.5 rounded-lg transition-colors" title="Abrir Dropbox">
                             <DropboxIcon />
                           </a>
                         )}
                       </div>
                     </div>
                     <div className="px-4 md:px-5 py-4">
-                      <button
-                        onClick={() => selectProject(p)}
-                        className="w-full bg-[#7ab82a] hover:bg-[#6aa020] text-white text-sm py-3 rounded-xl font-semibold transition-colors"
-                      >
+                      <div className="w-full bg-[#7ab82a] text-white text-sm py-3 rounded-xl font-semibold text-center">
                         Ver proyecto →
-                      </button>
+                      </div>
                     </div>
                   </div>
                 ))}
