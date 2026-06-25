@@ -180,6 +180,7 @@ export default function AdminPage() {
   async function uploadImages(files: FileList) {
     if (!selectedDelivery) return
     setUploading(true)
+    let uploaded = 0
     for (const original of Array.from(files)) {
       const file = await resizeForUpload(original)
       const path = `${selectedDelivery.id}/${Date.now()}-${file.name}`
@@ -187,10 +188,25 @@ export default function AdminPage() {
       if (!uploadError) {
         const { data: urlData } = supabase.storage.from('images').getPublicUrl(path)
         await supabase.from('images').insert({ delivery_id: selectedDelivery.id, url: urlData.publicUrl, name: file.name })
+        uploaded++
       }
     }
     loadImages(selectedDelivery.id)
     setUploading(false)
+    // Aviso por email (a los destinatarios de NOTIFY_EMAILS) — un solo correo por tanda
+    if (uploaded > 0 && project) {
+      fetch('/api/notify-upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectName: project.name,
+          region: project.region,
+          deliveryName: selectedDelivery.name,
+          count: uploaded,
+          adminUrl: `${window.location.origin}/a/${token}`,
+        }),
+      }).catch(() => {})
+    }
   }
 
   async function deleteImage(imageId: string) {
