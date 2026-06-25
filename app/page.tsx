@@ -709,8 +709,8 @@ function ProjectCard({ p, act, allApproved, onArchive, onDelete }: {
 
   return (
     <div className="bg-slate-50 border border-slate-200 rounded-xl group">
-      <div className="flex items-center justify-between px-3 md:px-4 py-3">
-        <div className="flex items-center gap-2 flex-1 min-w-0 mr-2">
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between px-3 md:px-4 py-3">
+        <div className="flex items-center gap-2 w-full min-w-0 md:flex-1 md:mr-2">
           <span className="font-medium text-slate-700 text-sm truncate">{p.name}</span>
           {(act?.changes ?? 0) > 0 && (
             <span className="flex-shrink-0 flex items-center gap-1 bg-red-100 text-red-600 text-xs font-semibold px-2 py-0.5 rounded-full">
@@ -724,7 +724,7 @@ function ProjectCard({ p, act, allApproved, onArchive, onDelete }: {
             </span>
           )}
         </div>
-        <div className="flex gap-1 items-center flex-shrink-0">
+        <div className="flex gap-1 items-center flex-wrap md:flex-nowrap md:flex-shrink-0">
           {allApproved && (
             <span className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg font-semibold bg-[#7ab82a] text-white shadow-sm">
               ✓ Todo aprobado
@@ -739,13 +739,13 @@ function ProjectCard({ p, act, allApproved, onArchive, onDelete }: {
           <button
             onClick={() => { setShowProblema(v => !v); setShowCliente(false); setShowSubido(false); setShowNotes(false) }}
             title="Reportar problema"
-            className="text-xs px-2 py-1.5 rounded-lg transition-colors text-red-400 hover:bg-red-50 opacity-0 group-hover:opacity-100"
+            className="text-xs px-2 py-1.5 rounded-lg transition-colors text-red-400 hover:bg-red-50 md:opacity-0 md:group-hover:opacity-100"
           >⚠️</button>
           {/* Botón link cliente */}
           <button
             onClick={() => { setShowCliente(v => !v); setShowProblema(false); setShowSubido(false); setShowNotes(false) }}
             title="Enviar link al cliente"
-            className={`text-xs px-2 py-1.5 rounded-lg transition-colors font-semibold ${facebookLink.trim() ? 'text-blue-700 bg-blue-100 border border-blue-300 hover:bg-blue-200' : 'text-slate-400 hover:text-blue-600 opacity-0 group-hover:opacity-100'}`}
+            className={`text-xs px-2 py-1.5 rounded-lg transition-colors font-semibold ${facebookLink.trim() ? 'text-blue-700 bg-blue-100 border border-blue-300 hover:bg-blue-200' : 'text-slate-400 hover:text-blue-600 md:opacity-0 md:group-hover:opacity-100'}`}
           >{facebookLink.trim() ? '🔗 Link' : '🔗'}</button>
           {/* Botón subido a IG */}
           <button
@@ -759,11 +759,11 @@ function ProjectCard({ p, act, allApproved, onArchive, onDelete }: {
           <button
             onClick={() => { setShowNotes(!showNotes); setShowProblema(false); setShowCliente(false); setShowSubido(false) }}
             title="Nota para diseñadora"
-            className={`text-xs px-2 py-1.5 rounded-lg transition-colors font-semibold ${notes?.trim() ? 'text-amber-700 bg-amber-100 border border-amber-300 hover:bg-amber-200' : 'text-slate-400 hover:text-amber-600 opacity-0 group-hover:opacity-100'}`}
+            className={`text-xs px-2 py-1.5 rounded-lg transition-colors font-semibold ${notes?.trim() ? 'text-amber-700 bg-amber-100 border border-amber-300 hover:bg-amber-200' : 'text-slate-400 hover:text-amber-600 md:opacity-0 md:group-hover:opacity-100'}`}
           >{notes?.trim() ? '📝 Nota' : '📝'}</button>
           <a href={`/a/${p.admin_token}`} target="_blank" className="text-xs bg-[#4a6478] text-white px-2.5 py-1.5 rounded-lg font-medium hover:bg-[#3a5060] transition-colors">Admin</a>
-          <button onClick={() => onArchive(p)} title="Archivar" className="text-xs text-slate-400 hover:text-[#4a6478] opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-1.5">📦</button>
-          <button onClick={() => onDelete(p.id)} className="text-xs text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity px-1 py-1.5">✕</button>
+          <button onClick={() => onArchive(p)} title="Archivar" className="text-xs text-slate-400 hover:text-[#4a6478] md:opacity-0 md:group-hover:opacity-100 transition-opacity px-1.5 py-1.5">📦</button>
+          <button onClick={() => onDelete(p.id)} className="text-xs text-red-400 hover:text-red-600 md:opacity-0 md:group-hover:opacity-100 transition-opacity px-1 py-1.5">✕</button>
         </div>
       </div>
 
