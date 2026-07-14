@@ -12,6 +12,8 @@
  *   --region <nombre>     Región destino (Osorno, Santiago, Valdivia, Concepción). Obligatoria.
  *   --proyecto <nombre>   Nombre del proyecto. Obligatorio (salvo que el material traiga estructura Región/Proyecto/...).
  *   --prefijo <texto>     Antepone el texto a cada carpeta (ej: --prefijo STORIES → "STORIES GENERAL").
+ *   --reusar              Fuerza usar el proyecto existente más reciente con ese nombre
+ *                         (aunque sea de un mes anterior). Por defecto CADA MES = PROYECTO NUEVO.
  *   --si                  Ejecuta de verdad. Sin este flag solo muestra el PLAN (dry-run).
  *   --scan-only           Solo analiza el material local, sin tocar la red (para debug).
  *   --duplicar            Sube imágenes aunque ya exista una con el mismo nombre en la carpeta.
@@ -237,6 +239,7 @@ async function main() {
     else if (a === '--region') opts.region = argv[++i]
     else if (a === '--proyecto') opts.proyecto = argv[++i]
     else if (a === '--prefijo') opts.prefijo = norm(argv[++i] || '')
+    else if (a === '--reusar') opts.reusar = true
     else positional.push(a)
   }
   if (positional.length !== 1) fail('Uso: node scripts/subir-material.mjs <archivo.rar|carpeta> --region <Región> --proyecto <Nombre> [--si]')
@@ -273,10 +276,16 @@ async function main() {
   if (!regionDb) fail(`Región "${opts.region}" no existe. Regiones: ${regions.map(r => r.name).join(', ')}`)
   const region = regionDb.name // valor canónico de la BD
 
-  const projects = await api.get(`projects?select=id,name,region,admin_token,archived&region=eq.${encodeURIComponent(region)}`)
-  let project = projects.find(p => normKey(p.name) === normKey(opts.proyecto))
-  // match parcial como ayuda (ej: "Green" vs "Green Concepción")
-  const partial = project ? null : projects.filter(p => normKey(p.name).includes(normKey(opts.proyecto)) || normKey(opts.proyecto).includes(normKey(p.name)))
+  const projects = await api.get(`projects?select=id,name,region,admin_token,archived,created_at&region=eq.${encodeURIComponent(region)}&order=created_at.desc`)
+
+  // REGLA: cada mes es un proyecto NUEVO. Solo se reutiliza un proyecto con el
+  // mismo nombre si es de ESTE MES y no está archivado (ej: el segundo rar de
+  // la misma entrega, o un reintento). Los de meses anteriores se dejan intactos.
+  const sameName = projects.filter(p => normKey(p.name) === normKey(opts.proyecto))
+  const thisMonth = new Date().toISOString().slice(0, 7) // 'YYYY-MM'
+  let project = sameName.find(p => !p.archived && p.created_at?.slice(0, 7) === thisMonth) || null
+  const oldOnes = sameName.filter(p => p !== project)
+  if (!project && opts.reusar && sameName.length > 0) project = sameName[0] // forzado con --reusar
 
   const deliveries = project ? await api.get(`deliveries?select=id,name&project_id=eq.${project.id}`) : []
   const findDelivery = (cat) => deliveries.find(d => normKey(d.name) === normKey(cat))
@@ -284,13 +293,12 @@ async function main() {
   console.log(`\n═══ PLAN ═══════════════════════════════════════`)
   console.log(`  Región:   ${region}`)
   if (project) {
-    console.log(`  Proyecto: ${project.name}  (YA EXISTE${project.archived ? ' — ⚠️ ARCHIVADO' : ''})`)
+    console.log(`  Proyecto: ${project.name}  (YA EXISTE, creado ${project.created_at?.slice(0, 10)} — se agregan carpetas ahí)`)
   } else {
-    console.log(`  Proyecto: ${opts.proyecto}  (SE CREARÁ NUEVO)`)
-    if (partial && partial.length > 0) {
-      console.log(`  ⚠️  Ojo: hay proyectos con nombre parecido en ${region}: ${partial.map(p => `"${p.name}"`).join(', ')}`)
-      console.log(`      Si es el mismo, usa --proyecto con el nombre exacto para no duplicar.`)
-    }
+    console.log(`  Proyecto: ${opts.proyecto}  (SE CREARÁ NUEVO para este mes)`)
+  }
+  for (const old of oldOnes) {
+    console.log(`  ℹ️  Existe un "${old.name}" anterior (${old.created_at?.slice(0, 10)}${old.archived ? ', archivado' : ''}) — NO se toca.`)
   }
   for (const [cat, files] of groups) {
     const existing = project ? findDelivery(cat) : null

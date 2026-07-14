@@ -62,6 +62,17 @@ Si el usuario NO indica archivo ni proyecto, dedúcelo todo tú:
 6. **Reporta al usuario:** cuántas imágenes por carpeta y el link admin
    `/a/{admin_token}` que imprime el script.
 
+## REGLA CLAVE: cada mes es un proyecto NUEVO
+
+Los proyectos NO se reutilizan entre meses. Si en junio hubo un "Green" en
+Concepción y en julio llega material de Green, se crea un "Green" NUEVO — el
+del mes anterior queda intacto (solo sirve de referencia para nombres de
+carpetas). El script ya aplica esta regla solo: reutiliza un proyecto del
+mismo nombre únicamente si fue creado ESTE mes (útil para el segundo rar de
+la misma entrega, ej: stories). NUNCA uses `--reusar` para meter material
+nuevo en un proyecto de un mes anterior, salvo que el usuario lo pida
+explícitamente.
+
 ## Detalles útiles
 
 - **Si la descarga trae VARIOS rar** (ej: `carrruseles-...rar` + `stories-...rar`),
