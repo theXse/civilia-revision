@@ -11,6 +11,7 @@
  * Opciones:
  *   --region <nombre>     Región destino (Osorno, Santiago, Valdivia, Concepción). Obligatoria.
  *   --proyecto <nombre>   Nombre del proyecto. Obligatorio (salvo que el material traiga estructura Región/Proyecto/...).
+ *   --prefijo <texto>     Antepone el texto a cada carpeta (ej: --prefijo STORIES → "STORIES GENERAL").
  *   --si                  Ejecuta de verdad. Sin este flag solo muestra el PLAN (dry-run).
  *   --scan-only           Solo analiza el material local, sin tocar la red (para debug).
  *   --duplicar            Sube imágenes aunque ya exista una con el mismo nombre en la carpeta.
@@ -102,17 +103,19 @@ function resolveInput(inputPath) {
   if (st.isFile()) return extractArchive(inputPath)
   // Es carpeta: ¿contiene archivos comprimidos?
   const archives = readdirSync(inputPath).filter(f => /\.(rar|zip)$/i.test(f))
-  if (archives.length > 0) {
-    console.log(`📁  La carpeta contiene ${archives.length} archivo(s) comprimido(s): ${archives.join(', ')}`)
-    const dest = mkdtempSync(path.join(tmpdir(), 'civilia-material-'))
-    for (const a of archives) {
-      const sub = extractArchive(path.join(inputPath, a))
-      // mover contenido extraído al destino común
-      for (const item of readdirSync(sub)) {
-        execFileSync('cp', ['-R', path.join(sub, item), dest])
-      }
-    }
-    return dest
+  if (archives.length === 1) {
+    console.log(`📁  La carpeta contiene: ${archives[0]}`)
+    return extractArchive(path.join(inputPath, archives[0]))
+  }
+  if (archives.length > 1) {
+    // Mezclar varios rar confunde las carpetas (cada rar trae su propia estructura).
+    // Mejor procesar cada uno por separado, con --prefijo si corresponde.
+    fail(`La carpeta contiene ${archives.length} archivos comprimidos:\n` +
+      archives.map(a => `      · ${a}`).join('\n') +
+      `\n\n    Corre el script UNA VEZ POR CADA ARCHIVO, por ejemplo:\n` +
+      archives.map(a => `      node scripts/subir-material.mjs "${path.join(inputPath, a)}" --region ... --proyecto ...`).join('\n') +
+      `\n\n    Tip: para un rar de stories puedes usar --prefijo "STORIES" y las carpetas\n` +
+      `    quedan como "STORIES GENERAL", separadas de las de los carruseles.`)
   }
   return inputPath
 }
@@ -158,7 +161,7 @@ function buildGroups(root, opts) {
 
   const groups = new Map() // categoría -> [{full, name}]
   const add = (cat, img) => {
-    const key = norm(cat)
+    const key = norm(opts.prefijo ? `${opts.prefijo} ${cat}` : cat)
     if (!groups.has(key)) groups.set(key, [])
     groups.get(key).push(img)
   }
@@ -224,7 +227,7 @@ const CONTENT_TYPES = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'im
 
 async function main() {
   const argv = process.argv.slice(2)
-  const opts = { si: false, scanOnly: false, duplicar: false, region: null, proyecto: null }
+  const opts = { si: false, scanOnly: false, duplicar: false, region: null, proyecto: null, prefijo: null }
   const positional = []
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
@@ -233,6 +236,7 @@ async function main() {
     else if (a === '--duplicar') opts.duplicar = true
     else if (a === '--region') opts.region = argv[++i]
     else if (a === '--proyecto') opts.proyecto = argv[++i]
+    else if (a === '--prefijo') opts.prefijo = norm(argv[++i] || '')
     else positional.push(a)
   }
   if (positional.length !== 1) fail('Uso: node scripts/subir-material.mjs <archivo.rar|carpeta> --region <Región> --proyecto <Nombre> [--si]')

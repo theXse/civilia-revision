@@ -64,6 +64,11 @@ Si el usuario NO indica archivo ni proyecto, dedúcelo todo tú:
 
 ## Detalles útiles
 
+- **Si la descarga trae VARIOS rar** (ej: `carrruseles-...rar` + `stories-...rar`),
+  el script se niega a mezclarlos: córrelo una vez por cada rar. Para el de
+  stories pregunta al usuario si quiere las carpetas separadas con
+  `--prefijo "STORIES"` (quedan como "STORIES GENERAL") o mezcladas con las
+  de los carruseles.
 - Requiere `.env.local` en la raíz (las credenciales están en AGENTS.md).
 - Para `.rar` necesita `unrar`, `7zz`, `7z` o `bsdtar`. En Mac: `brew install sevenzip`.
 - El script es **idempotente**: si se corre dos veces, omite imágenes que ya
