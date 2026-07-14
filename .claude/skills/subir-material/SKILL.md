@@ -8,7 +8,29 @@ description: Sube material gráfico (rar/zip/carpeta con imágenes) a la platafo
 Flujo completo para subir láminas nuevas. El trabajo pesado lo hace
 `scripts/subir-material.mjs` (sin dependencias, solo Node + fetch).
 
-## Pasos
+## Modo automático ("súbelo a mi plataforma", sin más datos)
+
+Si el usuario NO indica archivo ni proyecto, dedúcelo todo tú:
+
+1. Busca lo más reciente en Descargas:
+   ```bash
+   ls -t ~/Downloads | grep -iE '(wetransfer|\.rar$|\.zip$)' | head -5
+   ```
+   Usa el más reciente (archivo `.rar`/`.zip` o carpeta `wetransfer_*`).
+2. Deduce región y proyecto del nombre del archivo y de las carpetas internas:
+   - conce/concepcion → Concepción · osorno → Osorno · valdivia → Valdivia ·
+     stgo/santiago → Santiago
+   - El proyecto suele ser el otro token del nombre (ej:
+     `carrruseles-green-conce` → proyecto Green, región Concepción).
+     Proyectos conocidos: Green, Vive Ainavillo, Vive Janequeo (Concepción);
+     Portal Baquedano, Jardines de Bellavista, Jardín del Norte, Fundo Los
+     Jesuitas (Osorno); Circunvalación Sur CS1/CS2/CS3 (Valdivia).
+     El dry-run avisa si hay un proyecto con nombre parecido en la BD — usa ese.
+3. Sigue con el dry-run (paso 3 de abajo) y muéstrale al usuario UNA sola
+   confirmación: qué archivo, qué proyecto/región y qué carpetas. Con su OK,
+   ejecuta con --si y reporta.
+
+## Pasos (modo normal)
 
 1. **Identifica el archivo/carpeta origen.** Normalmente un `.rar` o `.zip` en
    `~/Downloads` (los de WeTransfer se llaman `wetransfer_..._HHMM`). Puede ser
