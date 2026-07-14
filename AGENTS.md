@@ -71,6 +71,14 @@ Si hay conflictos, resolver preservando features de ambas versiones antes de com
 Si se agregan columnas nuevas, ejecutar en Supabase SQL Editor.
 Ver `supabase-migration.sql` en la raíz para el schema completo.
 
+## Subir material nuevo (rar/zip de WeTransfer)
+
+Cuando el usuario pida "sube este rar/material a [región]", usar la skill
+**subir-material** (`.claude/skills/subir-material/`). El script
+`scripts/subir-material.mjs` hace todo: descomprime, crea el proyecto si no
+existe, crea las carpetas (deliveries) y sube las láminas. Siempre correr
+primero el dry-run y mostrar el plan antes de ejecutar con `--si`.
+
 ## Archivos clave
 
 - `app/page.tsx` — dashboard principal con las 4 ciudades
