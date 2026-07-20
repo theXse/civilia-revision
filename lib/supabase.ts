@@ -38,6 +38,7 @@ export type Delivery = {
   sort_order: number
   problem_notes: string | null
   facebook_link: string | null
+  ig_caption: string | null
   client_notified_at: string | null
   client_approved_at: string | null
   approval_token: string | null

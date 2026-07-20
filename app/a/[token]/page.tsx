@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import type { Project, Delivery, Image as Img, Comment, Region, ProjectComment } from '@/lib/supabase'
 import Image from 'next/image'
 import { thumbUrl, resizeForUpload } from '@/lib/imageUtils'
+import InstagramMockup from '@/components/InstagramMockup'
 
 export default function AdminPage() {
   const { token } = useParams() as { token: string }
@@ -39,6 +40,7 @@ export default function AdminPage() {
   const [facebookLink, setFacebookLink] = useState('')
   const [savingLink, setSavingLink] = useState(false)
   const [queuingLink, setQueuingLink] = useState(false)
+  const [showIgMockup, setShowIgMockup] = useState(false)
 
   useEffect(() => { loadProject() }, [token])
 
@@ -342,6 +344,18 @@ export default function AdminPage() {
     alert('Problema reportado a Ximena')
   }
 
+  async function saveIgCaption(text: string) {
+    if (!selectedDelivery) return
+    const value = text.trim() || null
+    const { error: updateError } = await supabase.from('deliveries').update({ ig_caption: value }).eq('id', selectedDelivery.id)
+    if (updateError) {
+      alert('No se pudo guardar el copy. Si es la primera vez, ejecuta supabase-ig-mockup.sql en el SQL Editor de Supabase.')
+      throw updateError
+    }
+    setDeliveries(prev => prev.map(d => d.id === selectedDelivery.id ? { ...d, ig_caption: value } : d))
+    setSelectedDelivery(prev => prev ? { ...prev, ig_caption: value } : prev)
+  }
+
   async function saveFacebookLink() {
     if (!selectedDelivery) return
     setSavingLink(true)
@@ -467,6 +481,18 @@ export default function AdminPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Mockup de Instagram */}
+      {showIgMockup && selectedDelivery && (
+        <InstagramMockup
+          images={images}
+          caption={selectedDelivery.ig_caption || ''}
+          location={project?.name}
+          date={selectedDelivery.created_at}
+          onSaveCaption={saveIgCaption}
+          onClose={() => setShowIgMockup(false)}
+        />
       )}
 
       {/* Lightbox */}
@@ -610,8 +636,18 @@ export default function AdminPage() {
           {selectedDelivery ? (
             <>
               <div className="mb-4 md:mb-5">
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="font-bold text-white text-base md:text-lg">{selectedDelivery.name}</h2>
+                <div className="flex items-center justify-between mb-3 gap-2">
+                  <h2 className="font-bold text-white text-base md:text-lg flex-1 min-w-0 truncate">{selectedDelivery.name}</h2>
+                  <button
+                    onClick={() => setShowIgMockup(true)}
+                    disabled={images.length === 0}
+                    title="Ver cómo se verá este post en Instagram"
+                    className="flex items-center gap-1.5 bg-gradient-to-r from-purple-600 to-pink-500 text-white px-3 md:px-4 py-2.5 rounded-xl text-sm font-medium hover:opacity-90 disabled:opacity-40 transition-opacity"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                    <span className="hidden sm:inline">Vista Instagram</span>
+                    <span className="sm:hidden">IG</span>
+                  </button>
                   <label className={`cursor-pointer bg-[#4a6478] text-white px-3 md:px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-[#3a5060] transition-colors ${uploading ? 'opacity-50' : ''}`}>
                     {uploading ? 'Subiendo...' : '+ Subir'}
                     <input type="file" multiple accept="image/*" className="hidden" onChange={e => e.target.files && uploadImages(e.target.files)} disabled={uploading} />
