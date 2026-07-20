@@ -7,6 +7,7 @@ import type { Project, Delivery, Image as Img, Comment, Region, ProjectComment }
 import Image from 'next/image'
 import { thumbUrl, resizeForUpload } from '@/lib/imageUtils'
 import InstagramMockup from '@/components/InstagramMockup'
+import { igCaptionFor } from '@/lib/igCaptions'
 
 export default function AdminPage() {
   const { token } = useParams() as { token: string }
@@ -344,18 +345,6 @@ export default function AdminPage() {
     alert('Problema reportado a Ximena')
   }
 
-  async function saveIgCaption(text: string) {
-    if (!selectedDelivery) return
-    const value = text.trim() || null
-    const { error: updateError } = await supabase.from('deliveries').update({ ig_caption: value }).eq('id', selectedDelivery.id)
-    if (updateError) {
-      alert('No se pudo guardar el copy. Si es la primera vez, ejecuta supabase-ig-mockup.sql en el SQL Editor de Supabase.')
-      throw updateError
-    }
-    setDeliveries(prev => prev.map(d => d.id === selectedDelivery.id ? { ...d, ig_caption: value } : d))
-    setSelectedDelivery(prev => prev ? { ...prev, ig_caption: value } : prev)
-  }
-
   async function saveFacebookLink() {
     if (!selectedDelivery) return
     setSavingLink(true)
@@ -487,10 +476,9 @@ export default function AdminPage() {
       {showIgMockup && selectedDelivery && (
         <InstagramMockup
           images={images}
-          caption={selectedDelivery.ig_caption || ''}
+          caption={selectedDelivery.ig_caption || igCaptionFor(project?.name)}
           location={project?.name}
           date={selectedDelivery.created_at}
-          onSaveCaption={saveIgCaption}
           onClose={() => setShowIgMockup(false)}
         />
       )}

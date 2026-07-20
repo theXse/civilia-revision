@@ -7,6 +7,7 @@ import type { Region, Project, Delivery, Image as Img, Comment, ProjectComment }
 import Image from 'next/image'
 import { thumbUrl } from '@/lib/imageUtils'
 import InstagramMockup from '@/components/InstagramMockup'
+import { igCaptionFor } from '@/lib/igCaptions'
 
 function DriveIcon() {
   return (
@@ -245,7 +246,7 @@ export default function ClientRegionPage() {
       {showIgMockup && selectedDelivery && (
         <InstagramMockup
           images={images}
-          caption={selectedDelivery.ig_caption || ''}
+          caption={selectedDelivery.ig_caption || igCaptionFor(selectedProject?.name)}
           location={selectedProject?.name}
           date={selectedDelivery.created_at}
           onClose={() => setShowIgMockup(false)}
