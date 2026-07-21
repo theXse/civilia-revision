@@ -463,14 +463,14 @@ export default function Home() {
                       const allApproved = (act?.total ?? 0) > 0 && (act?.total ?? 0) === (act?.approved ?? 0)
                       return (
                       <div key={p.id} className="bg-white border border-slate-200 rounded-xl px-4 py-3 flex items-center justify-between group">
-                        <div className="min-w-0 flex-1 mr-2">
-                          <p className="font-medium text-slate-600 text-sm truncate">{p.name}</p>
+                        <div className="min-w-[90px] flex-1 mr-2 overflow-hidden">
+                          <p className="font-medium text-slate-600 text-sm truncate" title={p.name}>{p.name}</p>
                           <p className="text-slate-400 text-xs mt-0.5">{p.region} · {new Date(p.archived_at || p.created_at).toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })}</p>
                         </div>
-                        <div className="flex gap-1 items-center flex-shrink-0">
+                        <div className="flex gap-1 items-center flex-wrap justify-end">
                           {allApproved && (
-                            <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg font-semibold bg-[#7ab82a] text-white">
-                              ✓ Todo aprobado
+                            <span title="Todo aprobado" className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg font-semibold bg-[#7ab82a] text-white whitespace-nowrap">
+                              ✓
                             </span>
                           )}
                           <a href={`/a/${p.admin_token}`} target="_blank" className="text-xs bg-slate-100 text-slate-600 px-2.5 py-1.5 rounded-lg font-medium hover:bg-slate-200 transition-colors">Ver</a>
@@ -710,8 +710,8 @@ function ProjectCard({ p, act, allApproved, onArchive, onDelete }: {
   return (
     <div className="bg-slate-50 border border-slate-200 rounded-xl group">
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between px-3 md:px-4 py-3">
-        <div className="flex items-center gap-2 w-full min-w-0 md:flex-1 md:mr-2">
-          <span className="font-medium text-slate-700 text-sm truncate">{p.name}</span>
+        <div className="flex items-center gap-2 w-full min-w-0 md:flex-1 md:mr-2 md:min-w-[150px]">
+          <span className="font-medium text-slate-700 text-sm truncate" title={p.name}>{p.name}</span>
           {(act?.changes ?? 0) > 0 && (
             <span className="flex-shrink-0 flex items-center gap-1 bg-red-100 text-red-600 text-xs font-semibold px-2 py-0.5 rounded-full">
               <span className="w-1.5 h-1.5 bg-red-500 rounded-full inline-block" />
@@ -724,10 +724,10 @@ function ProjectCard({ p, act, allApproved, onArchive, onDelete }: {
             </span>
           )}
         </div>
-        <div className="flex gap-1 items-center flex-wrap md:flex-nowrap md:flex-shrink-0">
+        <div className="flex gap-1 items-center flex-wrap md:justify-end">
           {allApproved && (
-            <span className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg font-semibold bg-[#7ab82a] text-white shadow-sm">
-              ✓ Todo aprobado
+            <span title="Todo aprobado" className="flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg font-semibold bg-[#7ab82a] text-white shadow-sm whitespace-nowrap">
+              ✓ Aprobado
             </span>
           )}
           {(act?.total ?? 0) > 0 && !allApproved && (
