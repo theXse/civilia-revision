@@ -227,7 +227,7 @@ export default function InstagramMockup({ images, caption, location, date, onSav
                           alt={`Lámina ${i + 1}`}
                           draggable={false}
                           onLoad={i === 0 ? onFirstImageLoad : undefined}
-                          className="w-full h-full flex-none snap-center object-cover select-none"
+                          className="w-full h-full flex-none snap-center object-contain bg-white select-none"
                         />
                       ))}
                     </div>
