@@ -7,7 +7,7 @@ import type { Project, Delivery, Image as Img, Comment, Region, ProjectComment }
 import Image from 'next/image'
 import { thumbUrl, resizeForUpload } from '@/lib/imageUtils'
 import InstagramMockup from '@/components/InstagramMockup'
-import { igCaptionFor } from '@/lib/igCaptions'
+import { igPostFor } from '@/lib/igCaptions'
 
 export default function AdminPage() {
   const { token } = useParams() as { token: string }
@@ -476,8 +476,8 @@ export default function AdminPage() {
       {showIgMockup && selectedDelivery && (
         <InstagramMockup
           images={images}
-          caption={selectedDelivery.ig_caption || igCaptionFor(project?.name)}
-          location={project?.name}
+          caption={selectedDelivery.ig_caption || igPostFor(project?.name).caption}
+          location={igPostFor(project?.name).location}
           date={selectedDelivery.created_at}
           onClose={() => setShowIgMockup(false)}
         />
