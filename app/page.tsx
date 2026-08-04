@@ -53,6 +53,7 @@ export default function Home() {
   const [urlInputs, setUrlInputs] = useState<Record<string, { drive: string; dropbox: string; delivery: string }>>({})
   const [reviewingRegion, setReviewingRegion] = useState<string | null>(null)
   const [reviewModal, setReviewModal] = useState<ReviewModal | null>(null)
+  const [archivingAll, setArchivingAll] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -134,6 +135,33 @@ export default function Home() {
     const archived_at = new Date().toISOString()
     await supabase.from('projects').update({ archived: true, archived_at }).eq('id', p.id)
     setProjects(prev => prev.map(x => x.id === p.id ? { ...x, archived: true, archived_at } : x))
+  }
+
+  async function archiveAll() {
+    const pendientes = projects.filter(p => !p.archived)
+    if (pendientes.length === 0) return
+    const porRegion = REGIONS
+      .map(r => ({ r, n: pendientes.filter(p => p.region === r).length }))
+      .filter(x => x.n > 0)
+      .map(x => `  · ${x.r}: ${x.n}`)
+      .join('\n')
+    const ok = window.confirm(
+      `¿Archivar los ${pendientes.length} proyectos activos?\n\n${porRegion}\n\n` +
+      `Quedarán en el historial como solo lectura. Puedes desarchivar uno por uno si te equivocas.`
+    )
+    if (!ok) return
+    setArchivingAll(true)
+    const archived_at = new Date().toISOString()
+    const ids = pendientes.map(p => p.id)
+    const { error } = await supabase.from('projects').update({ archived: true, archived_at }).in('id', ids)
+    setArchivingAll(false)
+    if (error) {
+      alert(`No se pudieron archivar los proyectos: ${error.message}`)
+      return
+    }
+    const archivados = new Set(ids)
+    setProjects(prev => prev.map(x => archivados.has(x.id) ? { ...x, archived: true, archived_at } : x))
+    setShowHistory(true)
   }
 
   async function unarchiveProject(id: string) {
@@ -219,6 +247,28 @@ export default function Home() {
       </header>
 
       <div className="max-w-6xl mx-auto p-4 md:p-8 space-y-8">
+
+        {/* Cierre de mes */}
+        {activeProjects.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-sm px-4 md:px-6 py-3 md:py-4 flex items-center gap-3 flex-wrap">
+            <div className="flex-1 min-w-[180px]">
+              <p className="text-slate-700 font-semibold text-sm">Cierre de mes</p>
+              <p className="text-slate-400 text-xs mt-0.5">
+                {activeProjects.length === 1
+                  ? '1 proyecto activo pasará al historial'
+                  : `${activeProjects.length} proyectos activos pasarán al historial`}
+              </p>
+            </div>
+            <button
+              onClick={archiveAll}
+              disabled={archivingAll}
+              title="Archivar todos los proyectos activos"
+              className="text-xs bg-[#4a6478] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#3a5060] transition-colors disabled:opacity-60 whitespace-nowrap"
+            >
+              {archivingAll ? 'Archivando…' : '📦 Archivar todo'}
+            </button>
+          </div>
+        )}
 
         {/* Proyectos activos */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
