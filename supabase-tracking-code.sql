@@ -2,7 +2,7 @@
 -- Tracking code para láminas (cruce con campañas Meta/Google Ads)
 -- Formato: LR-[REG3]-[YYMM]-[NNNN]
 --   LR    = La Ruta
---   REG3  = OSO | STG | VAL | CON (primeras 3 letras de la región, mayúsculas)
+--   REG3  = OSO | STG | VAL | CON | TEM (primeras 3 letras de la región, mayúsculas)
 --   YYMM  = año+mes de creación
 --   NNNN  = secuencia por (región, año+mes), 4 dígitos con padding
 -- Ejemplo: LR-OSO-2605-0042
@@ -42,6 +42,7 @@ BEGIN
     WHEN 'valdivia'    THEN 'VAL'
     WHEN 'concepción'  THEN 'CON'
     WHEN 'concepcion'  THEN 'CON'
+    WHEN 'temuco'      THEN 'TEM'
     ELSE upper(substring(regexp_replace(v_region, '[^a-zA-Z]', '', 'g') from 1 for 3))
   END;
 
@@ -105,6 +106,7 @@ SET tracking_code =
     WHEN 'valdivia'   THEN 'VAL'
     WHEN 'concepción' THEN 'CON'
     WHEN 'concepcion' THEN 'CON'
+    WHEN 'temuco'     THEN 'TEM'
     ELSE upper(substring(regexp_replace(o.region, '[^a-zA-Z]', '', 'g') from 1 for 3))
   END ||
   '-' || o.yymm || '-' || lpad(o.seq::text, 4, '0')

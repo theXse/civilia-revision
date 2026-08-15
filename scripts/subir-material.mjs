@@ -9,7 +9,7 @@
  *   node scripts/subir-material.mjs <archivo.rar|.zip|carpeta> --region <Región> --proyecto <Nombre> [opciones]
  *
  * Opciones:
- *   --region <nombre>     Región destino (Osorno, Santiago, Valdivia, Concepción). Obligatoria.
+ *   --region <nombre>     Región destino (Osorno, Santiago, Valdivia, Concepción, Temuco). Obligatoria.
  *   --proyecto <nombre>   Nombre del proyecto. Obligatorio (salvo que el material traiga estructura Región/Proyecto/...).
  *   --si                  Ejecuta de verdad. Sin este flag solo muestra el PLAN (dry-run).
  *   --scan-only           Solo analiza el material local, sin tocar la red (para debug).
@@ -32,7 +32,7 @@ import crypto from 'node:crypto'
 // ── Configuración ─────────────────────────────────────────────────────────────
 
 const IMAGE_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif'])
-const REGIONES_CONOCIDAS = ['Osorno', 'Santiago', 'Valdivia', 'Concepción']
+const REGIONES_CONOCIDAS = ['Osorno', 'Santiago', 'Valdivia', 'Concepción', 'Temuco']
 
 function loadEnv() {
   const envPath = path.join(process.cwd(), '.env.local')

@@ -7,6 +7,7 @@ const REGION_EMAILS: Record<string, string> = {
   'Santiago': 'mmardones@civilia.cl',
   'Valdivia': 'jprovis@civilia.cl',
   'Concepción': 'cvargas@civilia.cl',
+  'Temuco': 'jprovis@civilia.cl',
 }
 
 async function processOverdueBatches() {

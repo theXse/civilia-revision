@@ -15,6 +15,7 @@ const REGION_SHEET_MAP: Record<string, string> = {
   'Valdivia': 'VALDIVIA',
   'Concepción': 'CONCEPCION',
   'Santiago': 'JDN',
+  'Temuco': 'TEMUCO',
 }
 
 // Palabras clave que identifican un delivery type (campañas) — no un nombre de proyecto

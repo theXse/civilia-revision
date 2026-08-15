@@ -34,7 +34,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_OBbKpkzwZyDPn2KPYVjnUQ_ee-oLjd1
 
 | Ruta | Descripción |
 |------|-------------|
-| `/` | Dashboard admin — 4 ciudades con proyectos |
+| `/` | Dashboard admin — 5 ciudades con proyectos |
 | `/r/[token]` | Vista del cliente — revisa láminas, aprueba/pide cambios |
 | `/a/[token]` | Vista del administrador — gestiona imágenes y comentarios |
 | `/a/[token]/resumen` | Resumen del proyecto |
@@ -42,7 +42,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_OBbKpkzwZyDPn2KPYVjnUQ_ee-oLjd1
 
 ## Estructura de base de datos
 
-- **regions** — 4 ciudades: Osorno, Santiago, Valdivia, Concepción (con `drive_url` y `dropbox_url`)
+- **regions** — 5 ciudades: Osorno, Santiago, Valdivia, Concepción, Temuco (con `drive_url` y `dropbox_url`)
 - **projects** — proyectos por región (con `notes`, `drive_link`, `ready_for_social`, `archived`)
 - **deliveries** — categorías/entregas dentro de un proyecto
 - **images** — láminas con estado: `pending` | `approved` | `changes_requested`
@@ -81,7 +81,7 @@ primero el dry-run y mostrar el plan antes de ejecutar con `--si`.
 
 ## Archivos clave
 
-- `app/page.tsx` — dashboard principal con las 4 ciudades
+- `app/page.tsx` — dashboard principal con las 5 ciudades
 - `app/r/[token]/page.tsx` — vista cliente
 - `app/a/[token]/page.tsx` — vista admin
 - `lib/supabase.ts` — tipos TypeScript y cliente Supabase

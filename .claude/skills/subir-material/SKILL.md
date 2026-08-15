@@ -19,7 +19,7 @@ Si el usuario NO indica archivo ni proyecto, dedúcelo todo tú:
    Usa el más reciente (archivo `.rar`/`.zip` o carpeta `wetransfer_*`).
 2. Deduce región y proyecto del nombre del archivo y de las carpetas internas:
    - conce/concepcion → Concepción · osorno → Osorno · valdivia → Valdivia ·
-     stgo/santiago → Santiago
+     stgo/santiago → Santiago · temuco → Temuco
    - El proyecto suele ser el otro token del nombre (ej:
      `carrruseles-green-conce` → proyecto Green, región Concepción).
      Proyectos conocidos: Green, Vive Ainavillo, Vive Janequeo (Concepción);
@@ -38,7 +38,7 @@ Si el usuario NO indica archivo ni proyecto, dedúcelo todo tú:
    maneja ambos casos.
 
 2. **Identifica región y proyecto.** La región es una de: Osorno, Santiago,
-   Valdivia, Concepción. El proyecto suele venir en el nombre del archivo
+   Valdivia, Concepción, Temuco. El proyecto suele venir en el nombre del archivo
    (ej: "green-conce" → proyecto Green, región Concepción). Si no está claro,
    pregunta al usuario ANTES de subir.
 

@@ -3,6 +3,7 @@ export const REGION_EMAILS: Record<string, string> = {
   'Santiago': 'mmardones@civilia.cl',
   'Valdivia': 'jprovis@civilia.cl',
   'Concepción': 'cvargas@civilia.cl',
+  'Temuco': 'jprovis@civilia.cl',
 }
 
 export const REGION_NAMES: Record<string, string> = {
@@ -10,6 +11,7 @@ export const REGION_NAMES: Record<string, string> = {
   'Santiago': 'Mauro',
   'Valdivia': 'Jorge',
   'Concepción': 'Carlos',
+  'Temuco': 'Jorge',
 }
 
 const LOGO_URL = 'https://civilia-revision.vercel.app/logo.png'
