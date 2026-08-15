@@ -79,6 +79,14 @@ Cuando el usuario pida "sube este rar/material a [región]", usar la skill
 existe, crea las carpetas (deliveries) y sube las láminas. Siempre correr
 primero el dry-run y mostrar el plan antes de ejecutar con `--si`.
 
+## Crear proyectos en lote
+
+`node scripts/crear-proyectos.mjs proyectos.json` crea de una vez varios
+proyectos, cada uno en su región, a partir de un JSON
+`{ "Región": ["Proyecto", ...] }`. Por defecto es dry-run: muestra el plan y no
+escribe. Con `--si` ejecuta. Omite los que ya existen, así que es seguro
+correrlo dos veces.
+
 ## Archivos clave
 
 - `app/page.tsx` — dashboard principal con las 5 ciudades
