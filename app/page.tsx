@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Project, Region } from '@/lib/supabase'
+import { buildWhatsappResumen } from '@/lib/whatsappResumen'
 import Image from 'next/image'
 
 const REGIONS = ['Osorno', 'Santiago', 'Valdivia', 'Concepción']
@@ -54,6 +55,8 @@ export default function Home() {
   const [reviewingRegion, setReviewingRegion] = useState<string | null>(null)
   const [reviewModal, setReviewModal] = useState<ReviewModal | null>(null)
   const [archivingAll, setArchivingAll] = useState(false)
+  const [resumenText, setResumenText] = useState<string | null>(null)
+  const [copiedResumen, setCopiedResumen] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -219,6 +222,32 @@ export default function Home() {
     }
   }
 
+  function openResumen() {
+    const activos = projects.filter(p => !p.archived)
+    const text = buildWhatsappResumen(
+      REGIONS.map(region => ({
+        region,
+        projects: activos
+          .filter(p => p.region === region)
+          .sort((a, b) => a.name.localeCompare(b.name, 'es'))
+          .map(p => ({ name: p.name, stats: activity[p.id] })),
+      }))
+    )
+    setCopiedResumen(false)
+    setResumenText(text)
+  }
+
+  async function copyResumen() {
+    if (!resumenText) return
+    try {
+      await navigator.clipboard.writeText(resumenText)
+      setCopiedResumen(true)
+      setTimeout(() => setCopiedResumen(false), 2000)
+    } catch {
+      alert('No se pudo copiar. Selecciona el texto y cópialo manualmente.')
+    }
+  }
+
   function getRegion(regionName: string): Region | null {
     return regions.find(r => r.name === regionName) ?? null
   }
@@ -242,6 +271,13 @@ export default function Home() {
         <Image src="/logo.png" alt="Civilia" width={120} height={40} className="object-contain" />
         <div className="h-6 w-px bg-slate-200" />
         <span className="text-slate-500 font-medium text-xs md:text-sm tracking-wide uppercase flex-1">Portal de Revisión</span>
+        <button
+          onClick={openResumen}
+          title="Armar resumen de aprobaciones para WhatsApp"
+          className="text-xs bg-[#25D366] text-white px-3 py-2 rounded-lg hover:bg-[#1eb955] transition-colors font-medium"
+        >
+          💬 Resumen
+        </button>
         <a href="/api/export" download className="text-xs bg-slate-100 text-slate-600 px-3 py-2 rounded-lg hover:bg-slate-200 transition-colors font-medium">⬇ Exportar</a>
         <a href="/import" className="text-xs bg-[#4a6478] text-white px-3 py-2 rounded-lg hover:bg-[#3a5060] transition-colors font-medium">⬆ Importar</a>
       </header>
@@ -541,6 +577,54 @@ export default function Home() {
         </div>
 
       </div>
+
+      {/* Modal resumen WhatsApp */}
+      {resumenText !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col">
+            <div className="bg-[#25D366] px-6 py-4 rounded-t-2xl flex items-center justify-between flex-shrink-0">
+              <div>
+                <h2 className="text-white font-bold text-base">💬 Resumen para WhatsApp</h2>
+                <p className="text-green-50 text-xs mt-0.5">Proyectos activos · aprobados y pendientes por región</p>
+              </div>
+              <button onClick={() => setResumenText(null)} className="text-white hover:text-green-100 text-xl font-bold px-2">✕</button>
+            </div>
+
+            <div className="overflow-y-auto p-6 flex-1">
+              <textarea
+                readOnly
+                value={resumenText}
+                rows={16}
+                onFocus={e => e.currentTarget.select()}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm text-slate-700 font-mono leading-relaxed resize-none focus:outline-none focus:border-[#25D366]"
+              />
+            </div>
+
+            <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2 flex-shrink-0">
+              <button
+                onClick={() => setResumenText(null)}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium px-5 py-2 rounded-lg transition-colors"
+              >
+                Cerrar
+              </button>
+              <button
+                onClick={copyResumen}
+                className="bg-slate-700 hover:bg-slate-800 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors"
+              >
+                {copiedResumen ? '✓ Copiado' : '📋 Copiar'}
+              </button>
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(resumenText)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-[#25D366] hover:bg-[#1eb955] text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors"
+              >
+                Enviar
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de revisión IA */}
       {reviewModal && (
