@@ -34,7 +34,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_OBbKpkzwZyDPn2KPYVjnUQ_ee-oLjd1
 
 | Ruta | Descripción |
 |------|-------------|
-| `/` | Dashboard admin — 4 ciudades con proyectos |
+| `/` | Dashboard admin — regiones con proyectos (4 ciudades + Carruseles Generales Civilia) |
 | `/r/[token]` | Vista del cliente — revisa láminas, aprueba/pide cambios |
 | `/a/[token]` | Vista del administrador — gestiona imágenes y comentarios |
 | `/a/[token]/resumen` | Resumen del proyecto |
@@ -42,7 +42,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_OBbKpkzwZyDPn2KPYVjnUQ_ee-oLjd1
 
 ## Estructura de base de datos
 
-- **regions** — 4 ciudades: Osorno, Santiago, Valdivia, Concepción (con `drive_url` y `dropbox_url`)
+- **regions** — 4 ciudades: Osorno, Santiago, Valdivia, Concepción + la región transversal **Carruseles Generales Civilia** (con `drive_url` y `dropbox_url`). La lista canónica está en `lib/regions.ts`
 - **projects** — proyectos por región (con `notes`, `drive_link`, `ready_for_social`, `archived`)
 - **deliveries** — categorías/entregas dentro de un proyecto
 - **images** — láminas con estado: `pending` | `approved` | `changes_requested`

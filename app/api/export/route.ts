@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { REGIONS } from '@/lib/regions'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -33,7 +34,7 @@ export async function GET() {
   lines.push('')
 
   // Group projects by region
-  const regions = ['Osorno', 'Santiago', 'Valdivia', 'Concepción']
+  const regions = REGIONS
   for (const region of regions) {
     const regionProjects = projects.filter(p => p.region === region)
     if (regionProjects.length === 0) continue

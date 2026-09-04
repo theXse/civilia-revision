@@ -3,9 +3,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Project, Region } from '@/lib/supabase'
+import { REGIONS } from '@/lib/regions'
 import Image from 'next/image'
-
-const REGIONS = ['Osorno', 'Santiago', 'Valdivia', 'Concepción']
 
 function DriveIcon({ dimmed }: { dimmed?: boolean }) {
   const opacity = dimmed ? 0.3 : 1
