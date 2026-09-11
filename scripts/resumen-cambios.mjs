@@ -14,18 +14,22 @@
  *   node scripts/resumen-cambios.mjs --todo                # sin filtro de mes
  *
  * Opciones:
- *   --mes <YYYY-MM>    Mes a resumir. Default: mes actual.
+ *   --mes <YYYY-MM>    Mes de campaña a resumir. Default: mes actual.
  *   --todo             Ignora el filtro de mes (todo el historial).
+ *   --solo-archivados  Solo proyectos archivados (como el historial del dashboard).
  *   --region <nombre>  Filtra por región (Osorno, Santiago, Valdivia, Concepción).
  *   --proyecto <nom>   Filtra por proyecto (coincidencia parcial, sin acentos).
  *   --out <archivo>    Archivo de salida. Default: resumen-cambios-<mes>.md
  *   --stdout           Imprime en pantalla en vez de escribir archivo.
  *
- * Qué cuenta como "del mes":
- *   Un comentario entra si su created_at cae en el mes. Una lámina en estado
- *   "cambios pedidos"/"revisada" entra si tiene algún comentario del mes o si
- *   la lámina se subió ese mes (images.created_at). Es el único criterio
- *   confiable: la tabla images no guarda fecha de cambio de estado.
+ * Qué cuenta como "proyecto del mes":
+ *   El mismo criterio que el "Historial de campañas" del dashboard
+ *   (app/page.tsx): la campaña de un proyecto es el mes de archived_at, o de
+ *   created_at si todavía no está archivado. Entran los proyectos archivados y
+ *   los activos de ese mes; cada uno se marca como Archivado / Activo.
+ *
+ *   Dentro de esos proyectos se lista TODO: cada lámina con cambios pedidos y
+ *   cada comentario, sin importar la fecha del comentario.
  */
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
@@ -63,10 +67,11 @@ const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
 // ── Argumentos ────────────────────────────────────────────────────────────────
 
 function parseArgs(argv) {
-  const args = { mes: null, todo: false, region: null, proyecto: null, out: null, stdout: false }
+  const args = { mes: null, todo: false, region: null, proyecto: null, out: null, stdout: false, soloArchivados: false }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
     if (a === '--todo') args.todo = true
+    else if (a === '--solo-archivados') args.soloArchivados = true
     else if (a === '--stdout') args.stdout = true
     else if (a === '--mes') args.mes = argv[++i]
     else if (a === '--region') args.region = argv[++i]
@@ -120,7 +125,6 @@ async function fetchAll({ url, key }, table, select = '*') {
 // ── Formato ───────────────────────────────────────────────────────────────────
 
 const fecha = (iso) => iso ? new Date(iso).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''
-const enMes = (iso, mes) => !mes || (iso || '').slice(0, 7) === mes
 
 function nombreMes(mes) {
   if (!mes) return 'todo el historial'
@@ -165,18 +169,21 @@ async function main() {
   }
   for (const arr of byImage.values()) arr.sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''))
 
-  // Una lámina entra al resumen si tiene comentarios del mes, o si pidió
-  // cambios y se subió ese mes.
+  // El filtro de mes se aplica al PROYECTO (mes de campaña), igual que el
+  // "Historial de campañas" del dashboard. Dentro de un proyecto del mes entra
+  // toda lámina con cambios pedidos/revisada y toda lámina con comentarios.
+  const mesCampania = (p) => (p.archived_at || p.created_at || '').slice(0, 7)
+
   const relevante = (img) => {
-    const cs = (byImage.get(img.id) || []).filter(c => enMes(c.created_at, mes))
+    const cs = byImage.get(img.id) || []
     const pidioCambios = img.status === 'changes_requested' || img.status === 'revised'
-    if (cs.length > 0) return cs
-    if (pidioCambios && enMes(img.created_at, mes)) return []
+    if (cs.length > 0 || pidioCambios) return cs
     return null
   }
 
   const L = []
   const pendientes = []   // comentarios sin responder
+  const sinObservaciones = []  // proyectos del mes sin ningún comentario ni cambio
   let totCambios = 0, totRevisadas = 0, totComentarios = 0, totProyectos = 0
 
   const cuerpo = []
@@ -189,6 +196,8 @@ async function main() {
 
     const projs = projects
       .filter(p => p.region === region)
+      .filter(p => !mes || mesCampania(p) === mes)
+      .filter(p => !args.soloArchivados || p.archived)
       .filter(p => !args.proyecto || sinAcentos(p.name).includes(sinAcentos(args.proyecto)))
       .sort((a, b) => a.name.localeCompare(b.name, 'es'))
 
@@ -236,7 +245,7 @@ async function main() {
 
       // Comentarios generales del proyecto
       const pcs = projectComments
-        .filter(c => c.project_id === project.id && enMes(c.created_at, mes))
+        .filter(c => c.project_id === project.id)
         .sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''))
       if (pcs.length > 0) {
         bloqueProyecto.push(``, `#### Comentarios generales del proyecto`)
@@ -246,15 +255,16 @@ async function main() {
         }
       }
 
-      if (bloqueProyecto.length === 0) continue
+      if (bloqueProyecto.length === 0) { sinObservaciones.push(`${region} · ${project.name}`); continue }
       totProyectos++
       cambiosRegion += cambiosProyecto
 
       const link = project.admin_token ? ` · [ver en la plataforma](/a/${project.admin_token})` : ''
+      const estadoProy = project.archived ? `Archivado ${fecha(project.archived_at)}` : 'Activo'
       bloqueRegion.push(
         ``,
         `### ${project.name}`,
-        `${cambiosProyecto} lámina(s) con cambios pedidos · ${comentariosProyecto} comentario(s)${link}`,
+        `${estadoProy} · ${cambiosProyecto} lámina(s) con cambios pedidos · ${comentariosProyecto} comentario(s)${link}`,
         ...bloqueProyecto,
       )
     }
@@ -265,7 +275,7 @@ async function main() {
   }
 
   // ── Encabezado y resumen ejecutivo ─────────────────────────────────────────
-  L.push(`# Cambios pedidos por el cliente — ${nombreMes(mes)}`)
+  L.push(`# Cambios pedidos por el cliente — campañas de ${nombreMes(mes)}`)
   L.push(``)
   L.push(`Plataforma Civilia · La Ruta · generado el ${fecha(new Date().toISOString())}`)
   if (args.region) L.push(`Filtro: región ${args.region}`)
@@ -280,6 +290,7 @@ async function main() {
   L.push(`| Láminas ya corregidas (revisadas) | ${totRevisadas} |`)
   L.push(`| Comentarios del cliente | ${totComentarios} |`)
   L.push(`| Comentarios sin responder | ${pendientes.length} |`)
+  L.push(`| Proyectos del mes sin observaciones | ${sinObservaciones.length} |`)
   L.push(``)
 
   if (pendientes.length > 0) {
@@ -296,6 +307,11 @@ async function main() {
   } else {
     L.push(`## Detalle por región`)
     L.push(...cuerpo)
+  }
+
+  if (sinObservaciones.length > 0) {
+    L.push(``, `## Proyectos del mes sin observaciones (${sinObservaciones.length})`, ``)
+    for (const n of sinObservaciones) L.push(`- ${n}`)
   }
 
   L.push(``, `---`, `_Generado desde la plataforma de revisión Civilia._`)
