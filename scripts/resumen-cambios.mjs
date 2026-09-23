@@ -33,6 +33,13 @@
  *   Dentro de esos proyectos se lista TODO: cada lámina con cambios pedidos y
  *   cada comentario, sin importar la fecha del comentario.
  *
+ * Ficha vigente:
+ *   El documento abre con la última vez que el cliente dijo cada dato que
+ *   cambia entre campañas (dirección de sala de ventas, pie, precio, stock,
+ *   FOGAES, estado de entrega, legales), por proyecto. Eso manda sobre lo que
+ *   quedó en la lámina del mes anterior. Esa sección mira todo el historial,
+ *   no solo los meses del filtro.
+ *
  * Recurrente vs puntual (con --ultimos N):
  *   El documento separa los temas que aparecen en 2 o más meses — error de
  *   criterio nuestro, hay que corregirlo de raíz — de los que aparecen en un
@@ -80,20 +87,44 @@ const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
  * naturaleza cambian cada campaña — si uno de esos se repite mes a mes, no es
  * "ya lo sabemos", es que hay que ir a buscar el dato nuevo cada vez.
  */
+/**
+ * Temas calibrados sobre los 199 comentarios reales de marzo–septiembre 2026.
+ * `volatil: true` marca los datos que cambian cada campaña: para esos vale
+ * siempre la última vez que el cliente lo dijo, nunca lo que quedó en la
+ * lámina del mes anterior.
+ *
+ * `strip` quita "sala de venta(s)" antes de buscar espacios comunes, para que
+ * "sala de ventas" no se cuente como espacio común del proyecto.
+ */
 const TEMAS = [
-  { tag: 'cuotas',      label: 'Cuotas / pie / financiamiento', volatil: true,  re: /\b(cuota|cuotas|pie|dividendo|financiamiento|credito|crédito|hipotecari)/ },
-  { tag: 'precio',      label: 'Precios / UF / descuentos',     volatil: true,  re: /\b(precio|valor|uf\b|descuento|bono|oferta|promocion|promoción|desde \$|\$)/ },
-  { tag: 'fechas',      label: 'Fechas / plazos de entrega',    volatil: true,  re: /\b(fecha|plazo|entrega|mes de|año|ano \d|vigencia|hasta el|vence)/ },
-  { tag: 'stock',       label: 'Stock / unidades disponibles',  volatil: true,  re: /\b(stock|disponible|quedan|ultimas|últimas|unidades|departamento[s]? disponible)/ },
-  { tag: 'contacto',    label: 'Datos de contacto / links',     volatil: true,  re: /\b(telefono|teléfono|fono|whatsapp|correo|mail|link|sitio web|direccion|dirección|instagram|@)/ },
-  { tag: 'legal',       label: 'Letra chica / legales',         volatil: true,  re: /\b(legal|letra chica|disclaimer|condicione|restriccion|restricción|vigente)/ },
-  { tag: 'logo',        label: 'Logo / marca',                  volatil: false, re: /\b(logo|isotipo|marca|imagotipo)/ },
-  { tag: 'tipografia',  label: 'Tipografía / legibilidad',      volatil: false, re: /\b(tipografia|tipografía|fuente|letra|texto (mas|más) grande|no se lee|ilegible|tama(n|ñ)o de (la )?letra)/ },
-  { tag: 'color',       label: 'Color / paleta',                volatil: false, re: /\b(color|tono|paleta|contraste|verde|azul|rojo|amarillo|blanco|negro)/ },
-  { tag: 'imagen',      label: 'Fotos / renders',               volatil: false, re: /\b(foto|imagen|render|fotografia|fotografía|recortad|pixelad|calidad de la imagen)/ },
-  { tag: 'ortografia',  label: 'Ortografía / redacción',        volatil: false, re: /\b(ortografia|ortografía|falta de ortograf|tilde|acento|mal escrit|redaccion|redacción|typo)/ },
-  { tag: 'layout',      label: 'Diagramación / orden',          volatil: false, re: /\b(orden|mover|centrar|alinea|margen|espacio|encim|tapa|corrid|diagrama|composicion|composición)/ },
-  { tag: 'copy',        label: 'Textos / mensaje',              volatil: false, re: /\b(texto|copy|titular|bajada|mensaje|frase|claim|slogan|eslogan)/ },
+  { tag: 'espacios',   label: 'Espacios comunes mal nombrados', volatil: false, strip: true,
+    re: /(salon|salones|multiuso|multiple|múltiple|quincho|cowork|gimnasio|\bgym\b|piscina|padel|pádel|sala gamer|sala de juegos|pet ?(spa|zone)|hall de acceso)/ },
+  { tag: 'imagen',     label: 'Foto o render equivocado',       volatil: false,
+    re: /(\bfoto|\brender|montaje|pixel|generada por ia|\bbruma\b|fotografia|fotografía)/ },
+  { tag: 'logo',       label: 'Logo o marca ausente',           volatil: false,
+    re: /(\blogo|civilia|\bmarca\b|isotipo|imagotipo)/ },
+  { tag: 'direccion',  label: 'Dirección / sala de ventas',     volatil: true,
+    re: /(sala de vent|salas de vent|direccion|dirección)/ },
+  { tag: 'entrega',    label: 'Estado de entrega',              volatil: true,
+    re: /(entrega inmediata|entrega futura|pronto piloto|preventa|obra en curso|entrega)/ },
+  { tag: 'precio',     label: 'Precio o UF desactualizado',     volatil: true,
+    re: /(\buf ?\d|\d ?uf\b|\bprecio|valor desde|desde de|liquidacion|liquidación|descuento)/ },
+  { tag: 'pie',        label: 'Pie / cuotas',                   volatil: true,
+    re: /(\bpie\b|cuotas?\b|dividendo|sin interes|sin interés)/ },
+  { tag: 'stock',      label: 'Stock / unidades',               volatil: true,
+    re: /(unidades|quedan \d|ultima unidad|última unidad|ultimas \d|últimas \d|\bstock\b)/ },
+  { tag: 'subsidio',   label: 'Subsidio a la tasa / FOGAES',    volatil: true,
+    re: /(fogaes|foages|subsidio a la ta|rebaja a la tasa)/ },
+  { tag: 'legal',      label: 'Legal / letra chica',            volatil: true,
+    re: /(\blegal\b|letra chica|global complementario|140 m|90 m2|12 meses|referencial)/ },
+  { tag: 'ortografia', label: 'Ortografía y mayúsculas',        volatil: false,
+    re: /(mayuscula|mayúscula|ortograf|cursiva|signos de exclam|tilde|mal escrit)/ },
+  { tag: 'contraste',  label: 'Contraste / no se lee',          volatil: false,
+    re: /(contraste|no se lee|no se leen|ilegible|letras blanc|fondo blanc)/ },
+  { tag: 'layout',     label: 'Diagramación / orden',           volatil: false,
+    re: /(orden|mover|centrar|alinea|margen|encim|tapa|corrid|diagrama|composicion|composición)/ },
+  { tag: 'copy',       label: 'Textos / mensaje',               volatil: false,
+    re: /(\btexto|copy|titular|bajada|mensaje|frase|claim|slogan|eslogan)/ },
 ]
 
 // ── Argumentos ────────────────────────────────────────────────────────────────
@@ -131,6 +162,26 @@ function printHelp() {
   console.log(readFileSync(new URL(import.meta.url)).toString().split('\n')
     .filter(l => l.trimStart().startsWith('*') || l.startsWith('/**'))
     .map(l => l.replace(/^\s*\/?\*+ ?/, '')).join('\n'))
+}
+
+/**
+ * Clave de proyecto: la plataforma tiene el mismo proyecto duplicado con
+ * distinto nombre (JDB3 / Jardines de Bellavista 3, CS2 / Circunvalación Sur II).
+ * Sin esto la ficha vigente parte el historial de un proyecto en dos.
+ */
+const ALIAS_PROYECTO = {
+  'jdb3': 'jardines de bellavista 3', 'jb3': 'jardines de bellavista 3',
+  'jdn': 'jardin del norte',
+  'cs1': 'circunvalacion sur 1', 'circunvalacion sur i': 'circunvalacion sur 1',
+  'circunvalacion sur etapa 1': 'circunvalacion sur 1',
+  'cs2': 'circunvalacion sur 2', 'circunvalacion sur ii': 'circunvalacion sur 2',
+  'cs3': 'circunvalacion sur 3', 'circunvalacion sur iii': 'circunvalacion sur 3',
+  'los jesuitas': 'fundo los jesuitas',
+  'vive janequeo - campana extra': 'vive janequeo',
+}
+const claveProyecto = (nombre) => {
+  const n = sinAcentos(nombre)
+  return ALIAS_PROYECTO[n] || n
 }
 
 const sinAcentos = (s) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
@@ -196,7 +247,8 @@ const ESTADO = {
 
 function temasDe(texto) {
   const t = sinAcentos(texto)
-  const tags = TEMAS.filter(x => x.re.test(t)).map(x => x.tag)
+  const sinVenta = t.replace(/salas? de vent\w*/g, '')
+  const tags = TEMAS.filter(x => x.re.test(x.strip ? sinVenta : t)).map(x => x.tag)
   return tags.length > 0 ? tags : ['otros']
 }
 
@@ -372,6 +424,38 @@ async function main() {
   if (args.region) L.push(`Filtro: región ${args.region}`)
   if (args.proyecto) L.push(`Filtro: proyecto "${args.proyecto}"`)
   L.push(``)
+  // ── Ficha vigente: la última vez que el cliente dijo cada dato volátil ────
+  // Mira TODO el historial, no solo los meses filtrados: lo más nuevo puede
+  // venir de una campaña anterior y sigue siendo lo vigente.
+  const proyectoDeImagen = new Map()
+  for (const d of deliveries) {
+    const proj = projects.find(p => p.id === d.project_id)
+    if (!proj) continue
+    for (const img of byDelivery.get(d.id) || []) proyectoDeImagen.set(img.id, proj)
+  }
+  const vigente = new Map()   // `${clave}|${tag}` -> { proj, tag, c }
+  const anotarVigente = (proj, texto, created_at, autor) => {
+    if (!proj) return
+    for (const tag of temasDe(texto)) {
+      const tema = TEMAS.find(t => t.tag === tag)
+      if (!tema?.volatil) continue
+      const k = `${proj.region}|${claveProyecto(proj.name)}|${tag}`
+      const prev = vigente.get(k)
+      if (!prev || (created_at || '') > (prev.created_at || '')) {
+        vigente.set(k, { proj, tag, texto: limpiar(texto), created_at, autor })
+      }
+    }
+  }
+  for (const c of comments) anotarVigente(proyectoDeImagen.get(c.image_id), c.content, c.created_at, c.author)
+  for (const c of projectComments) anotarVigente(projects.find(p => p.id === c.project_id), c.content, c.created_at, c.author)
+
+  const fichaPorProyecto = new Map()
+  for (const v of vigente.values()) {
+    const k = `${v.proj.region}|${claveProyecto(v.proj.name)}`
+    if (!fichaPorProyecto.has(k)) fichaPorProyecto.set(k, { proj: v.proj, datos: [] })
+    fichaPorProyecto.get(k).datos.push(v)
+  }
+
   L.push(`## Resumen`)
   L.push(``)
   L.push(`| | |`)
@@ -384,6 +468,26 @@ async function main() {
   L.push(`| Comentarios sin responder | ${pendientes.length} |`)
   L.push(`| Proyectos sin observaciones | ${sinObservaciones.length} |`)
   L.push(``)
+
+  if (fichaPorProyecto.size > 0) {
+    L.push(`## Ficha vigente — lo último que dijo el cliente`)
+    L.push(``)
+    L.push(`> Para cada dato que cambia entre campañas, la **última vez** que el cliente lo dijo.`)
+    L.push(`> Esto manda sobre lo que quedó en la lámina del mes anterior. Revisa todo el historial,`)
+    L.push(`> no solo los meses del filtro.`)
+    L.push(``)
+    const orden = [...fichaPorProyecto.values()].sort((a, b) =>
+      a.proj.region.localeCompare(b.proj.region, 'es') || a.proj.name.localeCompare(b.proj.name, 'es'))
+    for (const { proj, datos } of orden) {
+      L.push(`### ${proj.name} — ${proj.region}`)
+      datos.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))
+      for (const d of datos) {
+        const label = TEMAS.find(t => t.tag === d.tag)?.label || d.tag
+        L.push(`- **${label}** _(${fecha(d.created_at)})_: ${d.texto}`)
+      }
+      L.push(``)
+    }
+  }
 
   if (mesesPresentes.length > 1 && temaIndex.size > 0) {
     L.push(`## Qué corregir de raíz y qué revisar cada mes`)
