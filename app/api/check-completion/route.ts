@@ -14,6 +14,7 @@ const REGION_SHEET_MAP: Record<string, string> = {
   'Osorno': 'OSORNO',
   'Valdivia': 'VALDIVIA',
   'Concepción': 'CONCEPCION',
+  'Temuco': 'TEMUCO',
   'Santiago': 'JDN',
 }
 

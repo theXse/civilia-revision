@@ -9,7 +9,7 @@
  *   node scripts/subir-material.mjs <archivo.rar|.zip|carpeta> --region <Región> --proyecto <Nombre> [opciones]
  *
  * Opciones:
- *   --region <nombre>     Región destino (Osorno, Santiago, Valdivia, Concepción). Obligatoria.
+ *   --region <nombre>     Región destino (Osorno, Santiago, Valdivia, Concepción, Temuco). Obligatoria.
  *   --proyecto <nombre>   Nombre del proyecto. Obligatorio (salvo que el material traiga estructura Región/Proyecto/...).
  *   --si                  Ejecuta de verdad. Sin este flag solo muestra el PLAN (dry-run).
  *   --scan-only           Solo analiza el material local, sin tocar la red (para debug).
@@ -32,7 +32,7 @@ import crypto from 'node:crypto'
 // ── Configuración ─────────────────────────────────────────────────────────────
 
 const IMAGE_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif'])
-const REGIONES_CONOCIDAS = ['Osorno', 'Santiago', 'Valdivia', 'Concepción']
+const REGIONES_CONOCIDAS = ['Osorno', 'Santiago', 'Valdivia', 'Concepción', 'Temuco']
 
 function loadEnv() {
   const envPath = path.join(process.cwd(), '.env.local')
@@ -269,7 +269,8 @@ async function main() {
   if (!regionDb) fail(`Región "${opts.region}" no existe. Regiones: ${regions.map(r => r.name).join(', ')}`)
   const region = regionDb.name // valor canónico de la BD
 
-  const projects = await api.get(`projects?select=id,name,region,admin_token,archived&region=eq.${encodeURIComponent(region)}`)
+  // Solo proyectos activos: cada mes se crea un proyecto nuevo y el anterior queda archivado
+  const projects = await api.get(`projects?select=id,name,region,admin_token,archived&region=eq.${encodeURIComponent(region)}&archived=eq.false`)
   let project = projects.find(p => normKey(p.name) === normKey(opts.proyecto))
   // match parcial como ayuda (ej: "Green" vs "Green Concepción")
   const partial = project ? null : projects.filter(p => normKey(p.name).includes(normKey(opts.proyecto)) || normKey(opts.proyecto).includes(normKey(p.name)))

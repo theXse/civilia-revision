@@ -2,14 +2,16 @@ export const REGION_EMAILS: Record<string, string> = {
   'Osorno': 'slyon@civilia.cl',
   'Santiago': 'mmardones@civilia.cl',
   'Valdivia': 'jprovis@civilia.cl',
-  'Concepción': 'cvargas@civilia.cl',
+  'Concepción': 'slyon@civilia.cl',
+  'Temuco': 'jprovis@civilia.cl',
 }
 
 export const REGION_NAMES: Record<string, string> = {
   'Osorno': 'Santiago',
   'Santiago': 'Mauro',
   'Valdivia': 'Jorge',
-  'Concepción': 'Carlos',
+  'Concepción': 'Santiago',
+  'Temuco': 'Jorge',
 }
 
 const LOGO_URL = 'https://civilia-revision.vercel.app/logo.png'

@@ -19,12 +19,12 @@ Si el usuario NO indica archivo ni proyecto, dedúcelo todo tú:
    Usa el más reciente (archivo `.rar`/`.zip` o carpeta `wetransfer_*`).
 2. Deduce región y proyecto del nombre del archivo y de las carpetas internas:
    - conce/concepcion → Concepción · osorno → Osorno · valdivia → Valdivia ·
-     stgo/santiago → Santiago
+     stgo/santiago → Santiago · temuco → Temuco
    - El proyecto suele ser el otro token del nombre (ej:
      `carrruseles-green-conce` → proyecto Green, región Concepción).
-     Proyectos conocidos: Green, Vive Ainavillo, Vive Janequeo (Concepción);
+     Proyectos conocidos: Green, Vive Ainavillo (Concepción); Vive Janequeo (Valdivia en la BD);
      Portal Baquedano, Jardines de Bellavista, Jardín del Norte, Fundo Los
-     Jesuitas (Osorno); Circunvalación Sur CS1/CS2/CS3 (Valdivia).
+     Jesuitas (Osorno); Circunvalación Sur CS1/CS2/CS3 (Valdivia); Paseo Mistral (Temuco).
      El dry-run avisa si hay un proyecto con nombre parecido en la BD — usa ese.
 3. Sigue con el dry-run (paso 3 de abajo) y muéstrale al usuario UNA sola
    confirmación: qué archivo, qué proyecto/región y qué carpetas. Con su OK,
@@ -38,7 +38,7 @@ Si el usuario NO indica archivo ni proyecto, dedúcelo todo tú:
    maneja ambos casos.
 
 2. **Identifica región y proyecto.** La región es una de: Osorno, Santiago,
-   Valdivia, Concepción. El proyecto suele venir en el nombre del archivo
+   Valdivia, Concepción, Temuco. El proyecto suele venir en el nombre del archivo
    (ej: "green-conce" → proyecto Green, región Concepción). Si no está claro,
    pregunta al usuario ANTES de subir.
 
@@ -66,6 +66,7 @@ Si el usuario NO indica archivo ni proyecto, dedúcelo todo tú:
 
 - Requiere `.env.local` en la raíz (las credenciales están en AGENTS.md).
 - Para `.rar` necesita `unrar`, `7zz`, `7z` o `bsdtar`. En Mac: `brew install sevenzip`.
+- Cada mes se crea un proyecto NUEVO: el script ignora los proyectos archivados.
 - El script es **idempotente**: si se corre dos veces, omite imágenes que ya
   existen con el mismo nombre en la misma carpeta (`--duplicar` para forzar).
 - Si el material trae estructura `Región/Proyecto/Categoría/...` la detecta solo;

@@ -33,7 +33,7 @@ export async function GET() {
   lines.push('')
 
   // Group projects by region
-  const regions = ['Osorno', 'Santiago', 'Valdivia', 'Concepción']
+  const regions = ['Osorno', 'Santiago', 'Valdivia', 'Concepción', 'Temuco']
   for (const region of regions) {
     const regionProjects = projects.filter(p => p.region === region)
     if (regionProjects.length === 0) continue

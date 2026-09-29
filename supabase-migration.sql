@@ -11,12 +11,13 @@ CREATE TABLE IF NOT EXISTS regions (
 ALTER TABLE regions ADD COLUMN IF NOT EXISTS drive_url text;
 ALTER TABLE regions ADD COLUMN IF NOT EXISTS dropbox_url text;
 
--- Insertar las 4 regiones con sus tokens únicos
+-- Insertar las 5 regiones con sus tokens únicos
 INSERT INTO regions (name, client_token) VALUES
   ('Osorno',     'osorno-rev-7x3k'),
   ('Santiago',   'santiago-rev-4m9p'),
   ('Valdivia',   'valdivia-rev-2n6w'),
-  ('Concepción', 'concepcion-rev-8q1f');
+  ('Concepción', 'concepcion-rev-8q1f'),
+  ('Temuco',     'temuco-rev-qk8t');
 
 -- Tabla para registrar revisiones de IA enviadas (evita duplicados por mes/región)
 CREATE TABLE IF NOT EXISTS ai_reviews (

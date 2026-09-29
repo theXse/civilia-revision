@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import type { Project, Region } from '@/lib/supabase'
 import Image from 'next/image'
 
-const REGIONS = ['Osorno', 'Santiago', 'Valdivia', 'Concepción']
+const REGIONS = ['Osorno', 'Santiago', 'Valdivia', 'Concepción', 'Temuco']
 
 function DriveIcon({ dimmed }: { dimmed?: boolean }) {
   const opacity = dimmed ? 0.3 : 1
