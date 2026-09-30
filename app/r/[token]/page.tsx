@@ -163,7 +163,11 @@ export default function ClientRegionPage() {
 
   async function updateStatus(status: 'approved' | 'changes_requested' | 'pending') {
     if (!selectedImage) return
-    await supabase.from('images').update({ status }).eq('id', selectedImage.id)
+    const { data, error } = await supabase.from('images').update({ status }).eq('id', selectedImage.id).select('id')
+    if (error || !data?.length) {
+      alert('No se pudo guardar tu respuesta. Revisa tu conexión y vuelve a intentarlo.')
+      return
+    }
     setSelectedImage({ ...selectedImage, status })
     setImages(images.map(i => i.id === selectedImage.id ? { ...i, status } : i))
   }
