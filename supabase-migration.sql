@@ -17,7 +17,8 @@ INSERT INTO regions (name, client_token) VALUES
   ('Santiago',   'santiago-rev-4m9p'),
   ('Valdivia',   'valdivia-rev-2n6w'),
   ('Concepción', 'concepcion-rev-8q1f'),
-  ('Temuco',     'temuco-rev-qk8t');
+  ('Temuco',     'temuco-rev-qk8t'),
+  ('General Civilia', 'general-civilia-rev-nd');
 
 -- Tabla para registrar revisiones de IA enviadas (evita duplicados por mes/región)
 CREATE TABLE IF NOT EXISTS ai_reviews (
